@@ -1,83 +1,62 @@
 #!/usr/bin/make -f
-# Sample debian/rules that uses debhelper.
-# GNU copyright 1997 to 1999 by Joey Hess.
+# debian/rules for shntool
+# (C) 2003 Joshua Kwan <joshk@triplehelix.org>
 
-# Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
-# This is the debhelper compatability version to use.
-export DH_COMPAT=2
+CFLAGS = -Wall -W -g
 
-configure: configure-stamp
-configure-stamp:
-	dh_testdir
-	# Add here commands to configure the package.
-	./configure --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -O0
+else
+	CFLAGS += -O2
+endif		
 
-	touch configure-stamp
+ifneq ($(DEB_HOST_GNU_TYPE),$(DEB_BUILD_GNU_TYPE))
+crossflags := --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE)
+endif
 
-build: configure-stamp build-stamp
+build: build-stamp
 build-stamp:
 	dh_testdir
-
-	# Add here commands to compile the package.
+	./configure $(crossflags) --prefix=/usr --mandir=/usr/share/man
 	$(MAKE)
-	#/usr/bin/docbook-to-man debian/shntool.sgml > shntool.1
-
-	touch build-stamp
+	touch $@
 
 clean:
 	dh_testdir
 	dh_testroot
-	rm -f build-stamp configure-stamp
-
-	# Add here commands to clean up after the build process.
+	rm -f build-stamp
 	-$(MAKE) distclean
-
-	dh_clean
+	dh_clean 
 
 install: build
 	dh_testdir
 	dh_testroot
-	dh_clean -k
+	dh_clean -k 
 	dh_installdirs
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/shntool
+	dh_installchangelogs
+	dh_installdocs README 
 
-	# Add here commands to install the package into debian/shntool.
-	$(MAKE) install prefix=$(CURDIR)/debian/shntool/usr
+binary-indep: 
+# Ye olde no-op.
 
-
-# Build architecture-independent files here.
-binary-indep: build install
-# We have nothing to do by default.
-
-# Build architecture-dependent files here.
 binary-arch: build install
-	dh_testversion 2
 	dh_testdir
 	dh_testroot
-#	dh_installdebconf	
-	dh_installdocs
-	dh_installexamples
-	dh_installmenu
-#	dh_installemacsen
-#	dh_installpam
-#	dh_installinit
-	dh_installcron
-	dh_installmanpages
-	dh_installinfo
-#	dh_undocumented
-	dh_installchangelogs ChangeLog
+	dh_compress
 	dh_link
 	dh_strip
-	dh_compress
 	dh_fixperms
-#	dh_makeshlibs
 	dh_installdeb
-#	dh_perl
 	dh_shlibdeps
 	dh_gencontrol
 	dh_md5sums
 	dh_builddeb
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install configure
+.PHONY: build clean binary-indep binary-arch binary install 

@@ -1,11 +1,30 @@
-This package was debianized by Caleb Epstein <cae@bklyn.org> on
-Tue,  9 Jan 2001 13:46:55 -0500.
+This package was debianized by Joshua Kwan <joshk@triplehelix.org> on
+Mon, 28 Mar 2005 15:56:21 -0800
 
-It was downloaded from http://shnutils.freeshell.org/shntool/
+It was downloaded from:
 
-Upstream Author(s): <shnutils@freeshell.org">
+http://etree.org/shnutils/shntool/
+
+Upstream Author: Jason Jordan <shnutils@freeshell.org>
 
 Copyright:
 
-Copyright (C) 2000-2001  Jason Jordan <shnutils@freeshell.org>
+(C) 2000-2004 Jason Jordan
+
+   This package is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 dated June, 1991.
+
+   This package is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this package; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.
+
+On Debian systems, the complete text of the GNU General Public License
+can be found in `/usr/share/common-licenses/GPL'.
 
