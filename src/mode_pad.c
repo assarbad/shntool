@@ -1,10 +1,10 @@
 /*  mode_pad.c - pad mode module
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,20 +13,25 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: mode_pad.c,v 1.21 2004/04/04 10:33:28 jason Exp $
- */
+#include "mode.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "shntool.h"
-#include "fileio.h"
-#include "wave.h"
-#include "misc.h"
+CVSID("$Id: mode_pad.c,v 1.75 2007/06/01 03:53:40 jason Exp $")
+
+static bool pad_main(int,char **);
+static void pad_help(void);
+
+mode_module mode_pad = {
+  "pad",
+  "shnpad",
+  "Pads CD-quality files not aligned on sector boundaries with silence",
+  CVSIDSTR,
+  TRUE,
+  pad_main,
+  pad_help
+};
 
 enum {
   PAD_UNKNOWN,
@@ -34,343 +39,239 @@ enum {
   PAD_POSTPAD
 };
 
-#define POSTFIX_PREPADDED  "prepadded"
-#define POSTFIX_POSTPADDED "postpadded"
+#define PAD_POSTFIX "-padded"
 
-static int output_dir_flag = 0;
 static int pad_type = PAD_UNKNOWN;
-static int preview = 0;
 
-static char *output_directory = ".";
-
-static format_module *op = NULL;
-
-static void pad_main(int,char **,int);
-
-mode_module mode_pad = {
-  "pad",
-  "shnpad",
-  "pads CD-quality files not aligned on sector boundaries with silence",
-  pad_main
-};
-
-static void show_usage()
+static void pad_help()
 {
-  int i,j=0;
-
-  printf("Usage: %s [OPTIONS] [files]\n",fullprogname);
-  printf("\n");
-  printf("Options:\n");
-  printf("\n");
-  printf("  -o fmt   specifies the output file format, where fmt is one of the following:\n");
-  printf("\n");
-  for (i=0;formats[i];i++)
-    if (formats[i]->output_func)
-      printf("              %" MAX_MODULE_NAME_LENGTH "s  (%s) %s\n",formats[i]->name,formats[i]->description,(0 == (j++))?"[DEFAULT]":"");
-  printf("\n");
-  printf("  -O val   specifies whether output files should be overwritten if they exist.\n");
-  printf("           val must be one of:  ask always never  (default is always)\n");
-  printf("\n");
-  printf("  -d dir   specifies alternate output directory (default is same as input file)\n");
-  printf("\n");
-  printf("  -prepad  specifies padding should be added to the beginning of the file\n");
-  printf("\n");
-  printf("  -postpad specifies padding should be added to the end of the file (default)\n");
-  printf("\n");
-  printf("  -p       preview what changes would be made without actually making them\n");
-  printf("\n");
-  printf("  -D       print debugging information\n");
-  printf("\n");
-  printf("  --       indicates that everything following it is a file name\n");
-  printf("\n");
-  printf("  -v       shows version information\n");
-  printf("  -h       shows this help screen\n");
-  printf("\n");
-  printf("  If no file names are given, then file names are read from standard input.\n");
-  printf("\n");
-  printf("  ------------\n");
-  printf("  Sample uses:\n");
-  printf("  ------------\n");
-  printf("\n");
-  printf("  %% %s -prepad -o shn filename.wav\n",fullprogname);
-  printf("\n");
-  printf("  %% find / -name \\*.shn | %s -o flac\n",fullprogname);
-  printf("\n");
-
-  exit(0);
+  st_info("Usage: %s [OPTIONS] [files]\n",st_progname());
+  st_info("\n");
+  st_info("Mode-specific options:\n");
+  st_info("\n");
+  st_info("  -b      pad the beginning of files with silence\n");
+  st_info("  -e      pad the end of files with silence (default)\n");
+  st_info("  -h      show this help screen\n");
+  st_info("\n");
+  st_info("If no filenames are given, then filenames are read from the terminal.\n");
+  st_info("\n");
 }
 
-static void parse(int argc,char **argv,int begin,int *first_arg)
+static void parse(int argc,char **argv,int *first_arg)
 {
-  int start,i,found_output = -1;
+  int c;
 
-  start = begin;
+  st_ops.output_directory = INPUT_FILE_DIR;
+  st_ops.output_postfix = PAD_POSTFIX;
+  pad_type = PAD_POSTPAD;
 
-  for (i=0;formats[i];i++)
-    if (formats[i]->output_func) {
-      found_output = i;
-      break;
+  while ((c = st_getopt(argc,argv,"be")) != -1) {
+    switch (c) {
+      case 'b':
+        pad_type = PAD_PREPAD;
+        break;
+      case 'e':
+        pad_type = PAD_POSTPAD;
+        break;
     }
-
-  if (-1 == found_output)
-    st_error("no output formats found, cannot continue");
-
-  while (start < argc && argv[start][0] == '-') {
-    if (argc > start && 0 == strcmp(argv[start],"--")) {
-      start++;
-      break;
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-v"))
-      internal_version();
-    else if (argc > start && 0 == strcmp(argv[start],"-h"))
-      show_usage();
-    else if (argc > start && 0 == strcmp(argv[start],"-D"))
-      shntool_debug = 1;
-    else if (argc > start && 0 == strcmp(argv[start],"-prepad"))
-      pad_type = PAD_PREPAD;
-    else if (argc > start && 0 == strcmp(argv[start],"-postpad"))
-      pad_type = PAD_POSTPAD;
-    else if (argc > start && 0 == strcmp(argv[start],"-p"))
-      preview = 1;
-    else if (argc > start && 0 == strcmp(argv[start],"-d")) {
-      if (1 == output_dir_flag)
-        st_help("too many output directories specified");
-      start++;
-      output_dir_flag = 1;
-      if (argc <= start)
-        st_help("missing output directory");
-      output_directory = argv[start];
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-o")) {
-      if (NULL != op)
-        st_help("too many output file formats specified");
-      op = output_format_init(argc,argv,&start);
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-O")) {
-      start++;
-      if (argc <= start)
-        st_help("missing overwrite action");
-      if (0 == strcmp(argv[start],"ask"))
-        clobberflag = CLOBBER_ACTION_ASK;
-      else if (0 == strcmp(argv[start],"always"))
-        clobberflag = CLOBBER_ACTION_ALWAYS;
-      else if (0 == strcmp(argv[start],"never"))
-        clobberflag = CLOBBER_ACTION_NEVER;
-      else
-        st_help("invalid overwrite action: %s",argv[start]);
-    }
-    else {
-      st_help("unknown argument: %s",argv[start]);
-    }
-    start++;
   }
 
-  if (NULL == op) {
-    op = formats[found_output];
-    st_warning("no output format specified - assuming %s",op->name);
-  }
-
-  if (PAD_UNKNOWN == pad_type) {
-    pad_type = PAD_POSTPAD;
-    st_warning("no padding type specified - assuming postpad");
-  }
-
-  *first_arg = start;
+  *first_arg = optind;
 }
 
-static void make_outfilename(char *infilename,char *outfilename)
-/* creates an output file name for padded data */
+static bool pad_file(wave_info *info)
 {
-  char *basename;
-
-  if ((basename = strrchr(infilename,'/')))
-    basename++;
-  else
-    basename = infilename;
-
-  if (1 == output_dir_flag)
-    my_snprintf(outfilename,FILENAME_SIZE,"%s/%s",output_directory,basename);
-  else
-    my_snprintf(outfilename,FILENAME_SIZE,"%s",basename);
-
-  if (filename_contains_a_dot(outfilename))
-    *(strrchr(outfilename,'.')) = '\0';
-
-  strcat(outfilename,"-");
-  strcat(outfilename,(pad_type == PAD_PREPAD)?POSTFIX_PREPADDED:POSTFIX_POSTPADDED);
-  strcat(outfilename,".");
-  strcat(outfilename,op->extension);
-}
-
-static void pad_file(wave_info *info)
-{
-  int output_pid,pad_bytes,has_null_pad,success = 0;
-  FILE *output;
+  int pad_bytes;
+  proc_info output_proc;
+  FILE *output = NULL;
   char outfilename[FILENAME_SIZE];
-  unsigned char *header,nullpad[BUF_SIZE];
+  unsigned char *header = NULL,nullpad[BUF_SIZE];
+  bool has_null_pad;
+  bool success;
+  progress_info proginfo;
 
-  make_outfilename(info->filename,outfilename);
+  success = FALSE;
+
+  create_output_filename(info->filename,info->input_format->extension,outfilename);
+
+  proginfo.initialized = FALSE;
+  proginfo.prefix = (pad_type == PAD_PREPAD) ? "Pre-padding" : "Post-padding";
+  proginfo.clause = "-->";
+  proginfo.filename1 = info->filename;
+  proginfo.filedesc1 = info->m_ss;
+  proginfo.filename2 = outfilename;
+  proginfo.filedesc2 = NULL;
+  proginfo.bytes_total = info->total_size;
+
+  prog_update(&proginfo);
+
+  if (files_are_identical(info->filename,outfilename)) {
+    prog_error(&proginfo);
+    st_warning("output file would overwrite input file -- skipping.");
+    return FALSE;
+  }
 
   pad_bytes = CD_BLOCK_SIZE - (info->data_size % CD_BLOCK_SIZE);
 
-  if (preview) {
-    printf("File '%s' would be %s-padded as '%s' with %d zero-bytes.\n",info->filename,((pad_type == PAD_PREPAD)?"pre":"post"),outfilename,pad_bytes);
-    return;
-  }
-
-  if (files_are_identical(info->filename,outfilename)) {
-    st_warning("output file '%s' would overwrite input file '%s' - skipping.",outfilename,info->filename);
-    return;
-  }
-
   has_null_pad = odd_sized_data_chunk_is_null_padded(info);
 
-  if (0 != open_input_stream(info)) {
-    st_warning("could not open file '%s' for input - skipping.",info->filename);
-    return;
+  if (!open_input_stream(info)) {
+    prog_error(&proginfo);
+    st_warning("could not open input file -- skipping.");
+    return FALSE;
   }
-
-  if (NULL == (output = op->output_func(outfilename,&output_pid))) {
-    st_warning("could not open file '%s' for output - skipping.",outfilename);
-    goto cleanup1;
-  }
-
-  printf("%s-padding '%s' as '%s' with %d zero-bytes ... ",((pad_type == PAD_PREPAD)?"pre":"post"),info->filename,outfilename,pad_bytes);
-  fflush(stdout);
 
   if (NULL == (header = malloc(info->header_size * sizeof(unsigned char)))) {
-    st_warning("could not allocate %d bytes for WAVE header - skipping.",info->header_size);
-    goto cleanup2;
+    prog_error(&proginfo);
+    st_warning("could not allocate %d-byte WAVE header -- skipping.",info->header_size);
+    goto cleanup;
   }
 
-  if (read_n_bytes(info->input,header,info->header_size) != info->header_size) {
-    st_warning("error while discarding %d-byte header - skipping.",info->header_size);
-    goto cleanup3;
+  if (NULL == (output = open_output_stream(outfilename,&output_proc))) {
+    prog_error(&proginfo);
+    st_warning("could not open output file -- skipping.");
+    goto cleanup;
   }
 
-  if (0 == do_header_kluges(header,info)) {
-    st_warning("could not fix WAVE header - skipping.");
-    goto cleanup3;
+  if (read_n_bytes(info->input,header,info->header_size,NULL) != info->header_size) {
+    prog_error(&proginfo);
+    st_warning("error while discarding %d-byte WAVE header -- skipping.",info->header_size);
+    goto cleanup;
+  }
+
+  if (!do_header_kluges(header,info)) {
+    prog_error(&proginfo);
+    st_warning("could not fix WAVE header -- skipping.");
+    goto cleanup;
   }
 
   put_data_size(header,info->header_size,info->data_size+pad_bytes);
 
   if (PROB_EXTRA_CHUNKS(info)) {
-    if (0 == has_null_pad)
+    if (!has_null_pad)
       info->extra_riff_size++;
     put_chunk_size(header,info->header_size+info->data_size+pad_bytes+info->extra_riff_size-8);
   }
   else
     put_chunk_size(header,info->header_size+info->data_size+pad_bytes-8);
 
-  if ((info->header_size > 0) && write_n_bytes(output,header,info->header_size) != info->header_size) {
-    st_warning("error while writing %d-byte header - skipping.",info->header_size);
-    goto cleanup3;
+  if ((info->header_size > 0) && write_n_bytes(output,header,info->header_size,&proginfo) != info->header_size) {
+    prog_error(&proginfo);
+    st_warning("error while writing %d-byte WAVE header -- skipping.",info->header_size);
+    goto cleanup;
   }
 
   if (PAD_PREPAD == pad_type) {
-    if (pad_bytes != write_padding(output,pad_bytes)) {
-      st_warning("error while pre-padding with %d zero-bytes",pad_bytes);
-      goto cleanup3;
+    if (pad_bytes != write_padding(output,pad_bytes,&proginfo)) {
+      prog_error(&proginfo);
+      st_warning("error while pre-padding with %d zero-bytes -- skipping.",pad_bytes);
+      goto cleanup;
     }
   }
 
-  if ((info->data_size > 0) && (transfer_n_bytes(info->input,output,info->data_size) != info->data_size)) {
-    st_warning("error while transferring %lu-byte data chunk - skipping.",info->data_size);
-    goto cleanup3;
+  if ((info->data_size > 0) && (transfer_n_bytes(info->input,output,info->data_size,&proginfo) != info->data_size)) {
+    prog_error(&proginfo);
+    st_warning("error while transferring %lu-byte data chunk -- skipping.",info->data_size);
+    goto cleanup;
   }
 
   if (PAD_POSTPAD == pad_type) {
-    if (pad_bytes != write_padding(output,pad_bytes)) {
-      st_warning("error while post-padding with %d zero-bytes",pad_bytes);
-      goto cleanup3;
+    if (pad_bytes != write_padding(output,pad_bytes,&proginfo)) {
+      prog_error(&proginfo);
+      st_warning("error while post-padding with %d zero-bytes -- skipping",pad_bytes);
+      goto cleanup;
     }
   }
 
-  if (PROB_ODD_SIZED_DATA(info) && (1 == has_null_pad)) {
-    if (1 != read_n_bytes(info->input,nullpad,1)) {
-      st_warning("error while discarding NULL pad byte");
-      goto cleanup3;
+  if (PROB_ODD_SIZED_DATA(info) && has_null_pad) {
+    if (1 != read_n_bytes(info->input,nullpad,1,&proginfo)) {
+      prog_error(&proginfo);
+      st_warning("error while discarding NULL pad byte -- skipping.");
+      goto cleanup;
     }
   }
 
-  if ((info->extra_riff_size > 0) && (transfer_n_bytes(info->input,output,info->extra_riff_size) != info->extra_riff_size)) {
-    st_warning("error while transferring %lu extra bytes - skipping.",info->extra_riff_size);
-    goto cleanup3;
+  if ((info->extra_riff_size > 0) && (transfer_n_bytes(info->input,output,info->extra_riff_size,&proginfo) != info->extra_riff_size)) {
+    prog_error(&proginfo);
+    st_warning("error while transferring %lu extra bytes -- skipping.",info->extra_riff_size);
+    goto cleanup;
   }
 
-  success = 1;
+  success = TRUE;
 
-  printf("done.\n");
+  prog_success(&proginfo);
 
-cleanup3:
-  free(header);
+cleanup:
+  st_free(header);
 
-cleanup2:
-  if ((CLOSE_CHILD_ERROR_OUTPUT == close_output(output,output_pid)) || (0 == success)) {
-    remove_file(op,outfilename);
+  if ((output) && ((CLOSE_CHILD_ERROR_OUTPUT == close_output(output,output_proc)) || !success)) {
+    success = FALSE;
+    remove_file(outfilename);
   }
 
-cleanup1:
   close_input_stream(info);
+
+  return success;
 }
 
-static void process_file(char *filename)
+static bool process_file(char *filename)
 {
   wave_info *info;
+  bool success;
 
   if (NULL == (info = new_wave_info(filename)))
-    return;
+    return FALSE;
 
   if (PROB_NOT_CD(info)) {
-    st_warning("file '%s' is not CD-quality - skipping.",filename);
-    free(info);
-    return;
+    st_warning("file is not CD-quality: [%s]",filename);
+    st_free(info);
+    return FALSE;
   }
 
-  if (0 == PROB_BAD_BOUND(info)) {
-    st_warning("file '%s' is already sector-aligned - skipping.",filename);
-    free(info);
-    return;
+  if (!PROB_BAD_BOUND(info)) {
+    st_warning("file is already sector-aligned: [%s]",filename);
+    st_free(info);
+    return FALSE;
   }
 
-  pad_file(info);
+  success = pad_file(info);
 
-  free(info);
+  st_free(info);
+
+  return success;
 }
 
-static void process(int argc,char **argv,int start)
+static bool process(int argc,char **argv,int start)
 {
   char filename[FILENAME_SIZE];
   int i;
+  bool success;
 
-  if (preview) {
-    printf("\n");
-    printf("Preview of changes:\n");
-    printf("-------------------\n");
-    printf("\n");
-  }
+  success = TRUE;
 
   if (argc < start + 1) {
-    /* no filename was given, so we're reading one file name from standard input. */
+    /* no filename was given, so we're reading one filename from the terminal. */
     fgets(filename,FILENAME_SIZE-1,stdin);
-    while (0 == feof(stdin)) {
-      filename[strlen(filename)-1] = '\0';
-      process_file(filename);
+    while (!feof(stdin)) {
+      trim(filename);
+      success = (process_file(filename) && success);
       fgets(filename,FILENAME_SIZE-1,stdin);
     }
   }
   else {
-    for (i=start;i<argc;i++)
-      process_file(argv[i]);
+    for (i=start;i<argc;i++) {
+      success = (process_file(argv[i]) && success);
+    }
   }
+
+  return success;
 }
 
-static void pad_main(int argc,char **argv,int start)
+static bool pad_main(int argc,char **argv)
 {
   int first_arg;
 
-  parse(argc,argv,start,&first_arg);
+  parse(argc,argv,&first_arg);
 
-  process(argc,argv,first_arg);
+  return process(argc,argv,first_arg);
 }

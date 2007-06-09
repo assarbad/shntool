@@ -45,7 +45,8 @@ Christian Weisgerber, who provided a Makefile patch.
 Boogie Shafer, who was the first to suggest that shntool should support CUE
 sheets.  Also, for the idea that split mode could split a file based on multiples
 of a given time interval.  Finally, for enduring and reporting a seriously nasty
-data-destroying bug in conv mode.  :-/
+data-destroying bug in conv mode, which led to the implementation of file clobber
+checks and the eventual instatement of 'ask' as the default overwrite action. :-/
 
 John Cook, who was the first of several to ask for the ability to prepad files.
 Also, for suggesting that shntool generate split points from an existing set of
@@ -63,12 +64,57 @@ small split points (0:00.001 - 0:00.020) to 0, causing shntool to error out.
 Tim Ebben, whose keen eye noticed that the m:ss.ff value on the totals line was
 reporting an incorrect value.
 
+Greg Eriksen, for suggesting that shntool have an option not to add predefined
+strings (e.g. "-fixed") to files.  This led to the ability to specify arbitrary
+user-defined prefixes and postfixes.  Also, for suggesting that md5 mode allow
+file reordering, for use with composite md5s.
+
+M Blake, who was the first of several people to request the ability to trim
+leading and/or trailing silence from files.
+
+Dave Maley, who didn't like that split mode moved to a three-digit numbering
+scheme (split-track001.wav, ...).  This led to the ability to specify your own
+number format, in printf syntax (e.g. "%02d").
+
+Krzysiek Wojszko, whose CUE file tripped up split mode so badly that I decided
+I better try to support the whole CUE specification.  :)
+
+Mike Harder, who reported a bug in split mode that prevented extremely large
+files from being split correctly when using the -l option.
+
+Michael Barnes, for contributing a patch to support natural filename sorting, and
+for the idea that shntool can better utilize exit codes.
+
+John, for suggesting that split mode be able to name output files based on TITLE
+keywords in CUE sheets.
+
+rob, for reporting a bug that prevented shntool from processing filenames read
+from stdin under Windows.
+
+Pierre-Yves, for offering to contribute code to name output files in split mode
+based on several fields in CUE sheets.
+
+David Bonde, for suggesting that split mode support user-defined lead-in and/or
+lead-out.
+
+Wim Speekenbrink, for reporting a bug where the last line of a CUE sheet that
+lacks a newline character was not getting parsed in split mode.
+
+Samson, for reporting a WavPack format detection issue and working with me to
+discover the cause, which turned out to be a bug triggered by 64-bit systems.
+Also, for providing me with sample CUE sheets that helped make split mode's
+CUE sheet parsing more robust.
+
+Thomas Strosslin, for reporting a major shortcoming in shntool's exit code
+reporting (especially affecting conv mode), and for providing a patch to
+address this issue.
+
 -------
 
 Thanks also goes to the developers of the following software, from which I have
 taken both ideas and code for shntool:
 
-xmms - shntool's WAVE header parsing algorithm was based off of the one in xmms's
+xmms - shntool's WAVE header parsing algorithm was based on the one in xmms's
        WAVE input plugin
 
 proftpd - shntool's method for gluing modules together was adapted from the way
@@ -77,6 +123,13 @@ proftpd - shntool's method for gluing modules together was adapted from the way
 sox - the WAVE_FORMAT_* defines and format_to_str() function were taken from the
       sox distribution
 
-coreutils - the MD5 algorithm was lifted from the GNU coreutils distribution
+coreutils - the MD5 and natural filename sorting algorithms were lifted from the
+            GNU coreutils distribution
 
-v2strip - shntool's ID3v2 detection was based off of the v2strip implementation
+v2strip - shntool's ID3v2 detection was based on the v2strip implementation
+
+==================
+Document revision:
+==================
+
+$Id: CREDITS,v 1.24 2007/06/01 03:08:13 jason Exp $

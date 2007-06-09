@@ -1,10 +1,10 @@
 /*  core_wave.c - functions for parsing WAVE headers
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,34 +13,18 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: core_wave.c,v 1.73 2004/05/05 07:15:56 jason Exp $
- */
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <unistd.h>
+#include <ctype.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include "shntool.h"
-#include "convert.h"
-#include "fileio.h"
-#include "misc.h"
-#include "wave.h"
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+CVSID("$Id: core_wave.c,v 1.110 2007/01/01 06:22:13 jason Exp $")
 
-#ifndef HAVE_STRERROR
-extern char *sys_errlist[];
-#endif
-
-int is_valid_file(wave_info *info)
+bool is_valid_file(wave_info *info)
 /* determines whether the given filename (info->filename) is a regular file, and is readable */
 {
   struct stat sz;
@@ -48,174 +32,67 @@ int is_valid_file(wave_info *info)
 
   if (stat(info->filename,&sz)) {
     if (errno == ENOENT)
-      st_warning("cannot open '%s' because it does not exist",info->filename);
+      st_warning("cannot open non-existent file: [%s]",info->filename);
     else if (errno == EACCES)
-      st_warning("cannot open '%s' due to insufficient permissions",info->filename);
+      st_warning("insufficient permissions to open file: [%s]",info->filename);
     else if (errno == EFAULT)
-      st_warning("cannot open '%s' due to bad address",info->filename);
+      st_warning("encountered bad address while opening file: [%s]",info->filename);
     else if (errno == ENOMEM)
-      st_warning("cannot open '%s' because the kernel ran out of memory",info->filename);
+      st_warning("kernel ran out of memory while opening file: [%s]",info->filename);
     else if (errno == ENAMETOOLONG)
-      st_warning("cannot open '%s' because the file name is too long",info->filename);
+      st_warning("filename too long to open file: [%s]",info->filename);
     else
-      st_warning("cannot open '%s' due to an unknown problem",info->filename);
-    return 0;
+      st_warning("encountered system error [%s] while opening file: [%s]",strerror(errno),info->filename);
+    return FALSE;
   }
-  if (0 == S_ISREG(sz.st_mode)) {
-    if (S_ISLNK(sz.st_mode))
-      st_warning("cannot open '%s' because it is a symbolic link, not a regular file",info->filename);
-    else if (S_ISDIR(sz.st_mode))
-      st_warning("cannot open '%s' because it is a directory, not a regular file",info->filename);
+  if (!S_ISREG(sz.st_mode)) {
+    if (S_ISDIR(sz.st_mode))
+      st_warning("cannot open directory: [%s]",info->filename);
     else if (S_ISCHR(sz.st_mode))
-      st_warning("cannot open '%s' because it is a character device, not a regular file",info->filename);
+      st_warning("cannot open character device: [%s]",info->filename);
     else if (S_ISBLK(sz.st_mode))
-      st_warning("cannot open '%s' because it is a block device, not a regular file",info->filename);
+      st_warning("cannot open block device: [%s]",info->filename);
     else if (S_ISFIFO(sz.st_mode))
-      st_warning("cannot open '%s' because it is a named pipe, not a regular file",info->filename);
+      st_warning("cannot open named pipe: [%s]",info->filename);
+#ifndef WIN32
+#ifdef S_ISSOCK
     else if (S_ISSOCK(sz.st_mode))
-      st_warning("cannot open '%s' because it is a socket, not a regular file",info->filename);
-    return 0;
+      st_warning("cannot open socket: [%s]",info->filename);
+#endif
+    else if (S_ISLNK(sz.st_mode))
+      st_warning("cannot open symbolic link: [%s]",info->filename);
+#endif
+    return FALSE;
   }
 
   info->actual_size = (wlong)sz.st_size;
 
   if (NULL == (f = fopen(info->filename,"rb"))) {
-    st_warning("could not open file '%s': %s",info->filename,
-#ifdef HAVE_STRERROR
-          strerror(errno)
-#else
-          sys_errlist[errno]
-#endif
-          );
-    return 0;
+    st_warning("encountered error [%s] while opening file: [%s]",strerror(errno),info->filename);
+    return FALSE;
   }
 
   fclose(f);
 
-  return 1;
+  return TRUE;
 }
 
-int aiff_input_kluge(unsigned char *header,wave_info *info)
-/* kluge to set data_size and chunk_size, since sox can't fseek() on
- * stdout to backfill these values.  This relies on values in the
- * COMM chunk.
- */
+bool do_header_kluges(unsigned char *header,wave_info *info)
 {
-  FILE *f;
-  unsigned long be_long = 0,chunk_size,samples = 0;
-  unsigned short be_short = 0,channels = 0,bits_per_sample = 0;
-  unsigned char tag[4];
-  int is_compressed = 0;
+  bool retval = TRUE;
 
-  st_debug("performing AIFF input header kluges for file '%s'",info->filename);
-
-  if (NULL == (f = open_input(info->filename)))
-    return 0;
-
-  /* look for FORM header */
-  if (0 == read_tag(f,tag) || tagcmp(tag,AIFF_FORM))
-    goto aiff_kluge_failed;
-
-  /* skip FORM chunk size, read in FORM type */
-  if (0 == read_be_long(f,&be_long) || 0 == read_tag(f,tag))
-    goto aiff_kluge_failed;
-
-  /* if FORM type is not AIFF or AIFC, bail out */
-  if (tagcmp(tag,AIFF_FORM_TYPE_AIFF) && tagcmp(tag,AIFF_FORM_TYPE_AIFC))
-    goto aiff_kluge_failed;
-
-  if (0 == tagcmp(tag,AIFF_FORM_TYPE_AIFC))
-    is_compressed = 1;
-
-  /* now let's check AIFC compression type - it's in the COMM chunk */
-  while (1) {
-    /* read chunk id */
-    if (0 == read_tag(f,tag))
-      goto aiff_kluge_failed;
-
-    if (0 == tagcmp(tag,AIFF_COMM))
-      break;
-
-    /* not COMM, so read size of this chunk and skip it */
-    if (0 == read_be_long(f,&chunk_size) || 0 != fseek(f,(long)chunk_size,SEEK_CUR))
-      goto aiff_kluge_failed;
+  if (info->input_format && info->input_format->input_header_kluge) {
+    st_debug1("performing [%s] input header kluge on file: [%s]",info->input_format->name,info->filename);
+    retval = info->input_format->input_header_kluge(header,info);
   }
 
-  /* now read channels, samples, and bits/sample from COMM chunk */
-  if (0 == read_be_long(f,&chunk_size) || 0 == read_be_short(f,&channels) ||
-      0 == read_be_long(f,&samples) || 0 == read_be_short(f,&bits_per_sample) ||
-      0 == read_be_long(f,&be_long) || 0 == read_be_long(f,&be_long) ||
-      0 == read_be_short(f,&be_short))
-  {
-    goto aiff_kluge_failed;
-  }
+  if (!retval)
+    st_warning("[%s] input header kluge failed while processing file: [%s]",info->input_format->name,info->filename);
 
-  if (is_compressed) {
-    if (0 == read_tag(f,tag))
-      goto aiff_kluge_failed;
-
-    if (tagcmp(tag,AIFF_COMPRESSION_NONE) && tagcmp(tag,AIFF_COMPRESSION_SOWT)) {
-      st_debug("found unsupported AIFF-C compression type [%c%c%c%c]",tag[0],tag[1],tag[2],tag[3]);
-      goto aiff_kluge_failed;
-    }
-  }
-
-  fclose(f);
-
-  /* set proper data size */
-  info->data_size = channels * samples * (bits_per_sample/8);
-
-  /* now set chunk size based on data size, and the canonical WAVE header size, which sox generates */
-  info->chunk_size = info->data_size + CANONICAL_HEADER_SIZE - 8;
-  if (PROB_ODD_SIZED_DATA(info))
-    info->chunk_size++;
-
-  make_canonical_header(header,info);
-
-  return 1;
-
-aiff_kluge_failed:
-
-  fclose(f);
-  return 0;
+  return retval;
 }
 
-int ape_input_kluge(unsigned char *header,wave_info *info)
-{
-  wlong adjusted_data_size;
-
-  st_debug("performing APE input header kluges for file '%s'",info->filename);
-
-  adjusted_data_size = info->data_size;
-  if (PROB_ODD_SIZED_DATA(info))
-    adjusted_data_size++;
-
-  if (info->chunk_size < adjusted_data_size)
-    info->chunk_size = info->header_size + adjusted_data_size - 8;
-
-  put_data_size(header,info->header_size,info->data_size);
-
-  return 1;
-}
-
-int do_header_kluges(unsigned char *header,wave_info *info)
-{
-  int failed = 0;
-
-  if (0 == strcmp(info->input_format->name,"aiff") && 0 == aiff_input_kluge(header,info))
-    failed = 1;
-  else if (0 == strcmp(info->input_format->name,"ape") && 0 == ape_input_kluge(header,info))
-    failed = 1;
-
-  if (failed) {
-    st_warning("while processing file '%s': %s to wav input kluge failed",info->filename,info->input_format->name);
-    return 0;
-  }
-
-  return 1;
-}
-
-int verify_wav_header_internal(wave_info *info,int verbose)
+bool verify_wav_header_internal(wave_info *info,bool verbose)
 /* verifies that data coming in on the file descriptor info->input describes a valid WAVE header */
 {
   unsigned long le_long=0,bytes;
@@ -224,103 +101,115 @@ int verify_wav_header_internal(wave_info *info,int verbose)
   int header_len = 0;
 
   /* look for "RIFF" in header */
-  if (0 == read_tag(info->input,tag) || tagcmp(tag,WAVE_RIFF)) {
-    if (0 == tagcmp(tag,AIFF_FORM)) {
-      if (verbose) st_warning("while processing file '%s': file contains AIFF data, which is currently not supported",info->filename);
+  if (!read_tag(info->input,tag) || tagcmp(tag,(unsigned char *)WAVE_RIFF)) {
+    if (verbose) {
+      if (!tagcmp(tag,(unsigned char *)AIFF_FORM)) {
+        st_warning("encountered unsupported AIFF data while processing file: [%s]",info->filename);
+      }
+      else {
+        st_warning("WAVE header is missing RIFF tag while processing file: [%s]",info->filename);
+      }
     }
-    else {
-      if (verbose) st_warning("while processing file '%s': WAVE header is missing RIFF tag - possible truncated/corrupt file",info->filename);
-    }
-    return 0;
+
+    return FALSE;
   }
 
-  if (0 == read_le_long(info->input,&info->chunk_size)) {
-    if (verbose) st_warning("while processing file '%s': could not read chunk size from WAVE header",info->filename);
-    return 0;
+  if (!read_le_long(info->input,&info->chunk_size)) {
+    st_warning("could not read chunk size from WAVE header while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
   /* look for "WAVE" in header */
-  if (0 == read_tag(info->input,tag) || tagcmp(tag,WAVE_WAVE)) {
-    if (verbose) st_warning("while processing file '%s': WAVE header is missing WAVE tag",info->filename);
-    return 0;
+  if (!read_tag(info->input,tag) || tagcmp(tag,(unsigned char *)WAVE_WAVE)) {
+    st_warning("WAVE header is missing WAVE tag while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
   header_len += 12;
 
+  st_debug1("showing RIFF chunks in file: [%s]",info->filename);
+
   for (;;) {
-    if (0 == read_tag(info->input,tag) || 0 == read_le_long(info->input,&le_long)) {
-      if (verbose) st_warning("while processing file '%s': reached end of file while looking for fmt tag",info->filename);
-      return 0;
+    if (!read_tag(info->input,tag) || !read_le_long(info->input,&le_long)) {
+      st_warning("reached end of file while looking for fmt tag while processing file: [%s]",info->filename);
+      return FALSE;
     }
+
+    st_debug1("found chunk: [%c%c%c%c] with length: %lu",tag[0],tag[1],tag[2],tag[3],le_long);
+
     header_len += 8;
-    if (0 == tagcmp(tag,WAVE_FMT))
+
+    if (!tagcmp(tag,(unsigned char *)WAVE_FMT))
       break;
+
     bytes = le_long;
+
     while (bytes > 0) {
-      if (fread(buf, 1, 1, info->input) != 1) {
-        if (verbose) st_warning("while processing file '%s': reached end of file while jumping ahead %lu bytes during search for fmt tag",info->filename,le_long);
-        return 0;
+      if (fread(buf,1,1,info->input) != 1) {
+        st_warning("reached end of file when jumping ahead %lu bytes during search for fmt tag while processing file: [%s]",info->filename,le_long);
+        return FALSE;
       }
       bytes--;
     }
+
     header_len += le_long;
   }
 
   if (le_long < 16) {
-    if (verbose) st_warning("while processing file '%s': fmt chunk in WAVE header was too short",info->filename);
-    return 0;
+    st_warning("fmt chunk in WAVE header was too short while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
   /* now we read the juicy stuff */
-  if (0 == read_le_short(info->input,&info->wave_format)) {
-    if (verbose) st_warning("while processing file '%s': reached end of file while reading format",info->filename);
-    return 0;
+  if (!read_le_short(info->input,&info->wave_format)) {
+    st_warning("reached end of file while reading format while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
   switch (info->wave_format) {
     case WAVE_FORMAT_PCM:
       break;
     default:
-      if (verbose) st_warning("while processing file '%s': unsupported format 0x%04x (%s) - only PCM data is supported at this time",
-            info->filename,info->wave_format,format_to_str(info->wave_format));
-      return 0;
+      st_warning("unsupported format 0x%04x (%s) while processing file: [%s]",
+            info->wave_format,format_to_str(info->wave_format),info->filename);
+      return FALSE;
   }
 
-  if (0 == read_le_short(info->input,&info->channels)) {
-    if (verbose) st_warning("while processing file '%s': reached end of file while reading channels",info->filename);
-    return 0;
+  if (!read_le_short(info->input,&info->channels)) {
+    st_warning("reached end of file reading channels while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
-  if (0 == read_le_long(info->input,&info->samples_per_sec)) {
-    if (verbose) st_warning("while processing file '%s': reached end of file while reading samples/sec",info->filename);
-    return 0;
+  if (!read_le_long(info->input,&info->samples_per_sec)) {
+    st_warning("reached end of file reading samples/sec while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
-  if (0 == read_le_long(info->input,&info->avg_bytes_per_sec)) {
-    if (verbose) st_warning("while processing file '%s': reached end of file while reading average bytes/sec",info->filename);
-    return 0;
+  if (!read_le_long(info->input,&info->avg_bytes_per_sec)) {
+    st_warning("reached end of file reading average bytes/sec while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
-  if (0 == read_le_short(info->input,&info->block_align)) {
-    if (verbose) st_warning("while processing file '%s': reached end of file while reading block align",info->filename);
-    return 0;
+  if (!read_le_short(info->input,&info->block_align)) {
+    st_warning("reached end of file reading block align while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
-  if (0 == read_le_short(info->input,&info->bits_per_sample)) {
-    if (verbose) st_warning("while processing file '%s': reached end of file while reading bits/sample",info->filename);
-    return 0;
+  if (!read_le_short(info->input,&info->bits_per_sample)) {
+    st_warning("reached end of file reading bits/sample while processing file: [%s]",info->filename);
+    return FALSE;
   }
 
   header_len += 16;
 
   le_long -= 16;
 
-  if (0 != le_long) {
+  if (le_long) {
     bytes = le_long;
     while (bytes > 0) {
-      if (fread(buf, 1, 1, info->input) != 1) {
-        if (verbose) st_warning("while processing file '%s': reached end of file while jumping ahead %lu bytes",info->filename,le_long);
-        return 0;
+      if (fread(buf,1,1,info->input) != 1) {
+        st_warning("reached end of file jumping ahead %lu bytes while processing file: [%s]",le_long,info->filename);
+        return FALSE;
       }
       bytes--;
     }
@@ -330,21 +219,28 @@ int verify_wav_header_internal(wave_info *info,int verbose)
   /* now let's look for the data chunk.  Following the string "data" is the
      length of the following WAVE data. */
   for (;;) {
-    if (0 == read_tag(info->input,tag) || 0 == read_le_long(info->input,&le_long)) {
-      if (verbose) st_warning("while processing file '%s': reached end of file while looking for data tag",info->filename);
-      return 0;
+    if (!read_tag(info->input,tag) || !read_le_long(info->input,&le_long)) {
+      st_warning("reached end of file looking for data tag while processing file: [%s]",info->filename);
+      return FALSE;
     }
+
+    st_debug1("found chunk: [%c%c%c%c] with length: %lu",tag[0],tag[1],tag[2],tag[3],le_long);
+
     header_len += 8;
-    if (0 == tagcmp(tag,WAVE_DATA))
+
+    if (!tagcmp(tag,(unsigned char *)WAVE_DATA))
       break;
+
     bytes = le_long;
+
     while (bytes > 0) {
-      if (fread(buf, 1, 1, info->input) != 1) {
-        if (verbose) st_warning("while processing file '%s': end of file encountered when jumping ahead %lu bytes while looking for data tag",info->filename,le_long);
-        return 0;
+      if (fread(buf,1,1,info->input) != 1) {
+        st_warning("reached end of file jumping ahead %lu bytes when looking for data tag while processing file: [%s]",le_long,info->filename);
+        return FALSE;
       }
       bytes--;
     }
+
     header_len += le_long;
   }
 
@@ -352,8 +248,8 @@ int verify_wav_header_internal(wave_info *info,int verbose)
 
   info->header_size = header_len;
 
-  if (0 == do_header_kluges(NULL,info))
-    return 0;
+  if (!do_header_kluges(NULL,info))
+    return FALSE;
 
   info->rate = ((wint)info->samples_per_sec * (wint)info->channels * (wint)info->bits_per_sample) / 8;
 
@@ -396,7 +292,7 @@ int verify_wav_header_internal(wave_info *info,int verbose)
   if ((info->data_size % info->block_align) != 0)
     info->problems |= PROBLEM_DATA_NOT_ALIGNED;
 
-  if ((0 == info->input_format->is_compressed) && (0 == info->input_format->is_translated)) {
+  if (info->input_format && !info->input_format->is_compressed && !info->input_format->is_translated) {
     if (info->total_size < (info->actual_size - info->id3v2_tag_size))
       info->problems |= PROBLEM_JUNK_APPENDED;
 
@@ -410,7 +306,7 @@ int verify_wav_header_internal(wave_info *info,int verbose)
   length_to_str(info);
 
   /* header looks ok */
-  return 1;
+  return TRUE;
 }
 
 wave_info *new_wave_info(char *filename)
@@ -420,10 +316,10 @@ wave_info *new_wave_info(char *filename)
  * the values in the WAVE header, otherwise return NULL.
  */
 {
-  int i;
+  int i,bytes;
   FILE *f;
   wave_info *info;
-  char buf[8];
+  unsigned char buf[8];
   char msg[BUF_SIZE],tmp[BUF_SIZE];
 
   if (NULL == (info = malloc(sizeof(wave_info)))) {
@@ -439,84 +335,102 @@ wave_info *new_wave_info(char *filename)
 
   info->filename = filename;
 
-  if (0 == is_valid_file(info))
+  if (!is_valid_file(info))
     goto invalid_wave_data;
 
   /* check which format module (if any) handles this file */
-  for (i=0;formats[i];i++) {
-    if (formats[i]->input_func && formats[i]->is_our_file(info->filename)) {
+  for (i=0;st_formats[i];i++) {
+    if (!st_formats[i]->supports_input)
+      continue;
 
-      info->input_format = formats[i];
-
-      /* check if file contains an ID3v2 tag, and set flag accordingly */
-      if (NULL == (f = open_input_internal(info->filename,&info->file_has_id3v2_tag,&info->id3v2_tag_size))) {
-        st_warning("could not open file '%s' to set ID3v2 flag",info->filename);
-        goto invalid_wave_data;
-      }
-
-      fclose(f);
-
-      /* make sure the file can be opened by the output format - this skips over any ID3v2 tags in the stream */
-      if (0 != open_input_stream(info)) {
-        st_warning("could not open file '%s', though the '%s' format module claims to support it",info->filename,formats[i]->name);
-        goto invalid_wave_data;
-      }
-
-      /* make sure we can read data from the output format (primarily to ensure the decoder program is sending us data) */
-      if (1 != fread(&buf,1,1,info->input)) {
-        my_snprintf(msg,BUF_SIZE,"could not read data from file '%s' using the '%s' format module - possible causes:\n",
-                    info->filename,info->input_format->name);
-
-        if (info->input_format->decoder) {
-          if (info->file_has_id3v2_tag) {
-            my_snprintf(tmp,BUF_SIZE,"+ decoder program '%s' may not handle files with ID3v2 tags - removing the tag might fix this\n",
-                        info->input_format->decoder);
-            strcat(msg,tmp);
-          }
-
-          my_snprintf(tmp,BUF_SIZE,"+ decoder program '%s' may not have been found - verify it is installed and in your PATH\n",
-                      info->input_format->decoder);
-          strcat(msg,tmp);
-        }
-
-        strcat(msg,"+ this file may be unsupported, truncated or otherwise corrupt");
-
-        st_warning(msg);
-
-        goto invalid_wave_data;
-      }
-
-      close_input_stream(info);
-      info->input = NULL;
-
-      /* reopen as input stream - this skips over any ID3v2 tags in the stream */
-      if (0 != open_input_stream(info))
-        goto invalid_wave_data;
-
-      /* finally, make sure a proper WAVE header is being sent */
-      if (0 == verify_wav_header_internal(info,1))
-        goto invalid_wave_data;
-
-      close_input_stream(info);
-      info->input = NULL;
-
-      /* success */
-      return info;
+    if (st_formats[i]->is_our_file) {
+      /* format defines its own checking function - use it */
+      if (!st_formats[i]->is_our_file(info->filename))
+        continue;
     }
+    else {
+      /* otherwise, check for format-defined magic string at a predefined offset (if defined) */
+      if (!check_for_magic(info->filename,st_formats[i]->magic,st_formats[i]->magic_offset))
+        continue;
+    }
+
+    /* found a format that claims to handle this file */
+    info->input_format = st_formats[i];
+
+    /* check if file contains an ID3v2 tag, and set flag accordingly */
+    if (NULL == (f = open_input_internal(info->filename,&info->file_has_id3v2_tag,&info->id3v2_tag_size))) {
+      st_warning("open failed while setting ID3v2 flag for file: [%s]",info->filename);
+      goto invalid_wave_data;
+    }
+
+    fclose(f);
+
+    /* make sure the file can be opened by the output format - this skips over any ID3v2 tags in the stream */
+    if (!open_input_stream(info)) {
+      st_debug1("input file could not be opened for streaming input by format: [%s]",st_formats[i]->name);
+      goto invalid_wave_data;
+    }
+
+    /* make sure we can read data from the output format (primarily to ensure the decoder is sending us data) */
+    if (1 != fread(&buf,1,1,info->input)) {
+      st_snprintf(msg,BUF_SIZE,"failed to read data from input file using format: [%s]\n",info->input_format->name);
+
+      st_snprintf(tmp,BUF_SIZE,"+ you may not have permission to read file: [%s]\n",info->filename);
+      strcat(msg,tmp);
+
+      if (info->input_format->decoder) {
+        st_snprintf(tmp,BUF_SIZE,"+ arguments may be incorrect for decoder: [%s]\n",info->input_format->decoder);
+        strcat(msg,tmp);
+
+        strcat(msg,"+ verify that the decoder is installed and in your PATH\n");
+
+        if (info->file_has_id3v2_tag) {
+          strcat(msg,"+ removing the ID3v2 tag from this file may fix this\n");
+        }
+      }
+
+      strcat(msg,"+ this file may be unsupported, truncated or corrupt");
+
+      st_warning(msg);
+
+      goto invalid_wave_data;
+    }
+
+    close_input_stream(info);
+    info->input = NULL;
+
+    /* reopen as input stream - this skips over any ID3v2 tags in the stream */
+    if (!open_input_stream(info))
+      goto invalid_wave_data;
+
+    /* finally, make sure a proper WAVE header is being sent */
+    if (!verify_wav_header(info))
+      goto invalid_wave_data;
+
+    close_input_stream(info);
+    info->input = NULL;
+
+    /* success */
+    return info;
   }
 
   /* if we got here, no file format modules claimed to handle the file */
 
-  st_warning("file '%s' is not handled by any of the builtin format modules",info->filename);
+  st_warning("none of the builtin format modules handle input file: [%s]",info->filename);
 
   if ((f = open_input_internal(info->filename,&info->file_has_id3v2_tag,&info->id3v2_tag_size))) {
-    i = read_n_bytes_quiet(f,buf,4);
-    buf[i] = 0;
+    bytes = read_n_bytes(f,buf,4,NULL);
+    buf[bytes] = 0;
+
+    for (i=0;i<bytes;i++) {
+      if (!isprint((unsigned char)buf[i]))
+        buf[i] = '?';
+    }
 
     if (info->file_has_id3v2_tag)
-      st_debug("after skipping %d-byte ID3v2 tag, file '%s' has %d-byte magic header 0x%08X [%s]",info->id3v2_tag_size,info->filename,i,uchar_to_ulong_be(buf),buf);
+      st_debug1("after skipping %d-byte ID3v2 tag, found %d-byte magic header 0x%08X [%s] in file: [%s]",info->id3v2_tag_size,i,uchar_to_ulong_be(buf),buf,info->filename);
     else
-      st_debug("file '%s' has %d-byte magic header 0x%08X [%s]",info->filename,i,uchar_to_ulong_be(buf),buf);
+      st_debug1("found %d-byte magic header 0x%08X [%s] in file: [%s]",i,uchar_to_ulong_be(buf),buf,info->filename);
 
     fclose(f);
   }
@@ -528,7 +442,7 @@ invalid_wave_data:
       close_input_stream(info);
       info->input = NULL;
     }
-    free(info);
+    st_free(info);
   }
 
   return NULL;
@@ -540,10 +454,10 @@ void make_canonical_header(unsigned char *header,wave_info *info)
   if (NULL == header)
     return;
 
-  tagcpy(header,WAVE_RIFF);
+  tagcpy(header,(unsigned char *)WAVE_RIFF);
   ulong_to_uchar_le(header+4,info->chunk_size);
-  tagcpy(header+8,WAVE_WAVE);
-  tagcpy(header+12,WAVE_FMT);
+  tagcpy(header+8,(unsigned char *)WAVE_WAVE);
+  tagcpy(header+12,(unsigned char *)WAVE_FMT);
   ulong_to_uchar_le(header+16,0x00000010);
   ushort_to_uchar_le(header+20,info->wave_format);
   ushort_to_uchar_le(header+22,info->channels);
@@ -551,7 +465,7 @@ void make_canonical_header(unsigned char *header,wave_info *info)
   ulong_to_uchar_le(header+28,info->avg_bytes_per_sec);
   ushort_to_uchar_le(header+32,info->block_align);
   ushort_to_uchar_le(header+34,info->bits_per_sample);
-  tagcpy(header+36,WAVE_DATA);
+  tagcpy(header+36,(unsigned char *)WAVE_DATA);
   ulong_to_uchar_le(header+40,info->data_size);
 }
 

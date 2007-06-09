@@ -1,10 +1,10 @@
 /*  mode_fix.c - fix mode module
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,26 +13,27 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: mode_fix.c,v 1.48 2004/04/06 18:45:16 jason Exp $
- */
+#include "mode.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "shntool.h"
-#include "fileio.h"
-#include "wave.h"
-#include "misc.h"
+CVSID("$Id: mode_fix.c,v 1.111 2007/06/01 03:58:29 jason Exp $")
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+static bool fix_main(int,char **);
+static void fix_help(void);
 
-#define POSTFIX_FIXED "fixed"
+mode_module mode_fix = {
+  "fix",
+  "shnfix",
+  "Fixes sector-boundary problems with CD-quality PCM WAVE data",
+  CVSIDSTR,
+  TRUE,
+  fix_main,
+  fix_help
+};
+
+#define FIX_POSTFIX "-fixed"
 
 typedef enum {
   SHIFT_UNKNOWN,
@@ -41,191 +42,66 @@ typedef enum {
   SHIFT_ROUND
 } fix_shifts;
 
-static int order = 0;
-static int pad = 1;
+static bool pad = TRUE;
+static bool skip = TRUE;
+static bool check_only = FALSE;
 static int pad_bytes = 0;
-static int preview = 0;
-static int skip = 1;
-static int warned = 0;
-static int output_dir_flag = 0;
 static int desired_shift = SHIFT_UNKNOWN;
 static int numfiles;
 
-static char *output_directory = ".";
-
 static wave_info **files;
 
-static format_module *op = NULL;
-
-static void fix_main(int,char **,int);
-
-mode_module mode_fix = {
-  "fix",
-  "shnfix",
-  "fixes sector-boundary problems with CD-quality PCM WAVE data",
-  fix_main
-};
-
-static void show_usage()
+static void fix_help()
 {
-  int i,j=0;
-
-  printf("Usage: %s [OPTIONS] file1 file2 [...]\n",fullprogname);
-  printf("\n");
-  printf("Options:\n");
-  printf("\n");
-  printf("  -o fmt   specifies the output file format, where fmt is one of the following:\n");
-  printf("\n");
-  for (i=0;formats[i];i++)
-    if (formats[i]->output_func)
-      printf("             %" MAX_MODULE_NAME_LENGTH "s  (%s) %s\n",formats[i]->name,formats[i]->description,(0 == (j++))?"[DEFAULT]":"");
-  printf("\n");
-  printf("  -O val   specifies whether output files should be overwritten if they exist.\n");
-  printf("           val must be one of:  ask always never  (default is always)\n");
-  printf("\n");
-  printf("  -d dir   specifies alternate output directory (default is current directory)\n");
-  printf("\n");
-  printf("  -s type  specifies the shift type, where type is one of the following:\n");
-  printf("\n");
-  printf("             b  shifts track breaks backward to the previous multiple of the\n");
-  printf("                block size (%d bytes) [DEFAULT]\n",CD_BLOCK_SIZE);
-  printf("             f  shifts track breaks forward to the next multiple of the block\n");
-  printf("                size (%d bytes)\n",CD_BLOCK_SIZE);
-  printf("             r  rounds track breaks to the nearest multiple of the block size\n");
-  printf("                (%d bytes)\n",CD_BLOCK_SIZE);
-  printf("\n");
-  printf("  -nopad   specifies that zero-padding should not be done (default is to pad)\n");
-  printf("\n");
-  printf("  -noskip  don't skip first N files that won't be changed from a WAVE data\n");
-  printf("           perspective (default is to skip them to avoid unnecessary work)\n");
-  printf("\n");
-  printf("  -order   allows you to edit the order of the files before processing them\n");
-  printf("           (useful for certain filenames, where *.shn might give d1t1.shn,\n");
-  printf("            d1t10.shn, d1t11.shn, d1t2.shn, d1t3.shn, ...)\n");
-  printf("\n");
-  printf("  -p       preview what changes would be made without actually making them\n");
-  printf("\n");
-  printf("  -D       print debugging information\n");
-  printf("\n");
-  printf("  --       indicates that everything following it is a file name\n");
-  printf("\n");
-  printf("  -v       shows version information\n");
-  printf("  -h       shows this help screen\n");
-  printf("\n");
-  printf("  ------------\n");
-  printf("  Sample uses:\n");
-  printf("  ------------\n");
-  printf("\n");
-  printf("    %% %s -o wav -order *.shn\n",fullprogname);
-  printf("\n");
-  printf("    %% %s -s r -o shn -nopad *.wav\n",fullprogname);
-  printf("\n");
-
-  exit(0);
+  st_info("Usage: %s [OPTIONS] file1 file2 [...]\n",st_progname());
+  st_info("\n");
+  st_info("Mode-specific options:\n");
+  st_info("\n");
+  st_info("  -b      shift track breaks backward to previous sector boundary (default)\n");
+  st_info("  -c      check whether fixing is needed\n");
+  st_info("  -f      shift track breaks forward to next sector boundary\n");
+  st_info("  -h      show this help screen\n");
+  st_info("  -k      don't skip initial unchanged files\n");
+  st_info("  -n      don't pad the last file with silence\n");
+  st_info("  -u      round track breaks to the nearest sector boundary\n");
+  st_info("\n");
 }
 
-static void parse(int argc,char **argv,int begin,int *first_arg)
+static void parse(int argc,char **argv,int *first_arg)
 {
-  int start,i,found_output = -1;
+  int c;
 
-  start = begin;
+  st_ops.output_directory = CURRENT_DIR;
+  st_ops.output_postfix = FIX_POSTFIX;
+  desired_shift = SHIFT_BACKWARD;
 
-  for (i=0;formats[i];i++)
-    if (formats[i]->output_func) {
-      found_output = i;
-      break;
-    }
-
-  if (-1 == found_output)
-    st_error("no output formats found, cannot continue");
-
-  while (start < argc && argv[start][0] == '-') {
-    if (argc > start && 0 == strcmp(argv[start],"--")) {
-      start++;
-      break;
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-v"))
-      internal_version();
-    else if (argc > start && 0 == strcmp(argv[start],"-h"))
-      show_usage();
-    else if (argc > start && 0 == strcmp(argv[start],"-D"))
-      shntool_debug = 1;
-    else if (argc > start && 0 == strcmp(argv[start],"-order"))
-      order = 1;
-    else if (argc > start && 0 == strcmp(argv[start],"-nopad"))
-      pad = 0;
-    else if (argc > start && 0 == strcmp(argv[start],"-noskip"))
-      skip = 0;
-    else if (argc > start && 0 == strcmp(argv[start],"-p"))
-      preview = 1;
-    else if (argc > start && 0 == strcmp(argv[start],"-d")) {
-      if (1 == output_dir_flag)
-        st_help("too many output directories specified");
-      start++;
-      output_dir_flag = 1;
-      if (argc <= start)
-        st_help("missing output directory");
-      output_directory = argv[start];
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-s")) {
-      start++;
-      if (desired_shift != SHIFT_UNKNOWN)
-        st_help("too many shift types specified");
-      if (argc <= start)
-        st_help("missing shift type");
-      if (0 == strcmp(argv[start],"b")) {
+  while ((c = st_getopt(argc,argv,"bcfknu")) != -1) {
+    switch (c) {
+      case 'b':
         desired_shift = SHIFT_BACKWARD;
-      }
-      else if (0 == strcmp(argv[start],"f")) {
+        break;
+      case 'c':
+        check_only = TRUE;
+        break;
+      case 'f':
         desired_shift = SHIFT_FORWARD;
-      }
-      else if (0 == strcmp(argv[start],"r")) {
+        break;
+      case 'k':
+        skip = FALSE;
+        break;
+      case 'n':
+        pad = FALSE;
+        break;
+      case 'u':
         desired_shift = SHIFT_ROUND;
-      }
-      else {
-        st_help("unknown shift type: %s",argv[start]);
-      }
+        break;
     }
-    else if (argc > start && 0 == strcmp(argv[start],"-o")) {
-      if (NULL != op)
-        st_help("too many output file formats specified");
-      op = output_format_init(argc,argv,&start);
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-O")) {
-      start++;
-      if (argc <= start)
-        st_help("missing overwrite action");
-      if (0 == strcmp(argv[start],"ask"))
-        clobberflag = CLOBBER_ACTION_ASK;
-      else if (0 == strcmp(argv[start],"always"))
-        clobberflag = CLOBBER_ACTION_ALWAYS;
-      else if (0 == strcmp(argv[start],"never"))
-        clobberflag = CLOBBER_ACTION_NEVER;
-      else
-        st_help("invalid overwrite action: %s",argv[start]);
-    }
-    else {
-      st_help("unknown argument: %s",argv[start]);
-    }
-    start++;
   }
 
-  if (start >= argc - 1)
+  if (optind >= argc - 1)
     st_help("need two or more files to process");
 
-  if (NULL == op) {
-    op = formats[found_output];
-    st_warning("no output format specified - assuming %s",op->name);
-    warned = 1;
-  }
-
-  if (SHIFT_UNKNOWN == desired_shift) {
-    desired_shift = SHIFT_BACKWARD;
-    st_warning("no shift direction specified - assuming backward shift");
-    warned = 1;
-  }
-
-  *first_arg = start;
+  *first_arg = optind;
 }
 
 static void calculate_breaks_backward()
@@ -310,138 +186,71 @@ static void calculation_sanity_check()
   }
 
   if (old_total != new_total) {
-    st_warning("total WAVE data size differs from newly calculated total -\n"
+    st_warning("total WAVE data size differs from newly calculated total --\n"
                "please file a bug report with the following data:");
-    fprintf(stderr,"\nshift type: %s\n\n",(SHIFT_BACKWARD == desired_shift)?"backward":
-                                         ((SHIFT_FORWARD == desired_shift)?"forward":
-                                         ((SHIFT_ROUND == desired_shift)?"round":"unknown")));
-    for (i=0;i<numfiles;i++) {
-      fprintf(stderr,"file %2d:  data size = %10lu, new data size = %10lu\n",i+1,files[i]->data_size,files[i]->new_data_size);
-    }
-    fprintf(stderr,"\ntotals :  data size = %10lu, new data size = %10lu\n",old_total,new_total);
-    exit(1);
+
+    st_info("\n");
+    st_info("Shift type: %s\n",(SHIFT_BACKWARD == desired_shift)?"backward":
+                                      ((SHIFT_FORWARD == desired_shift)?"forward":
+                                      ((SHIFT_ROUND == desired_shift)?"round":"unknown")));
+
+    st_info("\n");
+    for (i=0;i<numfiles;i++)
+      st_info("file %2d:  data size = %10lu, new data size = %10lu\n",i+1,files[i]->data_size,files[i]->new_data_size);
+
+    st_info("\n");
+    st_info("totals :  data size = %10lu, new data size = %10lu\n",old_total,new_total);
+
+    exit(ST_EXIT_ERROR);
   }
 }
 
-static void make_outfilename(char *infilename,char *outfilename)
-/* creates an output file name for shifted data, used in fix mode */
-{
-  char *basename;
-
-  if ((basename = strrchr(infilename,'/')))
-    basename++;
-  else
-    basename = infilename;
-
-  if (1 == output_dir_flag)
-    my_snprintf(outfilename,FILENAME_SIZE,"%s/%s",output_directory,basename);
-  else
-    my_snprintf(outfilename,FILENAME_SIZE,"%s",basename);
-
-  if (filename_contains_a_dot(outfilename))
-    *(strrchr(outfilename,'.')) = '\0';
-
-  strcat(outfilename,"-");
-  strcat(outfilename,POSTFIX_FIXED);
-  strcat(outfilename,".");
-  strcat(outfilename,op->extension);
-}
-
-static void show_potential_changes()
-{
-  int i;
-  char outfilename[FILENAME_SIZE];
-
-  printf("\n");
-  printf("Preview of changes:\n");
-  printf("-------------------\n");
-  printf("\n");
-  printf("Track breaks will be %s when necessary.\n\n",
-         (SHIFT_BACKWARD == desired_shift)?"shifted backward":
-         ((SHIFT_FORWARD == desired_shift)?"shifted forward":
-                                           "rounded to the nearest sector boundary"));
-
-  for (i=0;i<numfiles;i++) {
-    make_outfilename(files[i]->filename,outfilename);
-    printf("%s --> %s\n",files[i]->filename,outfilename);
-
-    printf("  - beginning of track will ");
-    if (files[i]->beginning_byte == files[i]->new_beginning_byte)
-      printf("remain unchanged");
-    else {
-      printf("be moved ");
-      if (files[i]->beginning_byte > files[i]->new_beginning_byte)
-        printf("backward by %lu bytes",files[i]->beginning_byte - files[i]->new_beginning_byte);
-      else
-        printf("forward by %lu bytes",files[i]->new_beginning_byte - files[i]->beginning_byte);
-    }
-    printf("\n");
-
-    printf("  - data size will ");
-    if (files[i]->data_size == files[i]->new_data_size)
-      printf("remain unchanged");
-    else {
-      if (files[i]->data_size > files[i]->new_data_size)
-        printf("decrease by %lu bytes",files[i]->data_size - files[i]->new_data_size);
-      else
-        printf("increase by %lu bytes",files[i]->new_data_size - files[i]->data_size);
-    }
-    printf("\n\n");
-  }
-
-  if (1 == pad) {
-    printf("The last file '%s' would",outfilename);
-    if (0 != pad_bytes)
-      printf(" be padded with %d zero-bytes.\n",pad_bytes);
-    else
-      printf("n't need any padding.\n");
-  }
-  else {
-    printf("The last file '%s' wouldn't be padded, ",outfilename);
-    if (0 != pad_bytes)
-      printf("but would need %d bytes of padding.\n",pad_bytes);
-    else
-      printf("and wouldn't need it.\n");
-  }
-}
-
-static int reopen_input_file(int i)
+static bool reopen_input_file(int i,progress_info *proginfo)
 {
   unsigned char *header;
 
-  if (0 != open_input_stream(files[i])) {
-    st_warning("could not reopen file '%s' for input",files[i]->filename);
-    return 0;
+  if (!open_input_stream(files[i])) {
+    prog_error(proginfo);
+    st_warning("could not reopen input file: [%s]",files[i]->filename);
+    return FALSE;
   }
 
   if (NULL == (header = malloc(files[i]->header_size * sizeof(unsigned char)))) {
-    st_warning("could not allocate %d bytes for WAVE header",files[i]->header_size);
-    return 0;
+    prog_error(proginfo);
+    st_warning("could not allocate %d-byte WAVE header",files[i]->header_size);
+    return FALSE;
   }
 
-  if (read_n_bytes(files[i]->input,header,files[i]->header_size) != files[i]->header_size) {
-    st_warning("error while reading %d-byte header",files[i]->header_size);
-    free(header);
-    return 0;
+  if (read_n_bytes(files[i]->input,header,files[i]->header_size,NULL) != files[i]->header_size) {
+    prog_error(proginfo);
+    st_warning("error while reading %d-byte WAVE header",files[i]->header_size);
+    st_free(header);
+    return FALSE;
   }
 
-  free(header);
+  st_free(header);
 
-  return 1;
+  return TRUE;
 }
 
-static int open_output_file(int i,char *outfilename)
+static bool open_this_file(int i,char *outfilename,progress_info *proginfo)
 {
   unsigned char header[CANONICAL_HEADER_SIZE];
 
-  make_outfilename(files[i]->filename,outfilename);
+  create_output_filename(files[i]->filename,files[i]->input_format->extension,outfilename);
 
-  if (NULL == (files[i]->output = op->output_func(outfilename,&files[i]->output_pid)))
-    st_error("could not open file '%s' for output",outfilename);
+  proginfo->filename1 = files[i]->filename;
+  proginfo->filedesc1 = files[i]->m_ss;
+  proginfo->filename2 = outfilename;
+
+  if (NULL == (files[i]->output = open_output_stream(outfilename,&files[i]->output_proc))) {
+    prog_error(proginfo);
+    st_error("could not open output file: [%s]",outfilename);
+  }
 
   make_canonical_header(header,files[i]);
 
-  if (numfiles - 1 == i && 1 == pad)
+  if ((numfiles - 1 == i) && pad)
     put_data_size(header,CANONICAL_HEADER_SIZE,files[i]->new_data_size+pad_bytes);
   else {
     put_data_size(header,CANONICAL_HEADER_SIZE,files[i]->new_data_size);
@@ -449,37 +258,52 @@ static int open_output_file(int i,char *outfilename)
       put_chunk_size(header,(files[i]->new_data_size + 1) + CANONICAL_HEADER_SIZE - 8);
   }
 
-  if (write_n_bytes(files[i]->output,header,CANONICAL_HEADER_SIZE) != CANONICAL_HEADER_SIZE) {
-    st_warning("error while writing %d-byte header",CANONICAL_HEADER_SIZE);
-    return 0;
+  if (write_n_bytes(files[i]->output,header,CANONICAL_HEADER_SIZE,proginfo) != CANONICAL_HEADER_SIZE) {
+    prog_error(proginfo);
+    st_warning("error while writing %d-byte WAVE header",CANONICAL_HEADER_SIZE);
+    return FALSE;
   }
 
-  return 1;
+  proginfo->filename2 = outfilename;
+  proginfo->bytes_total = files[i]->new_data_size + CANONICAL_HEADER_SIZE;
+
+  return TRUE;
 }
 
-static void write_fixed_files()
+static bool write_fixed_files()
 {
-  int cur_input,cur_output,success = 0;
+  int cur_input,cur_output;
   unsigned long bytes_have,bytes_needed,bytes_to_xfer;
   char outfilename[FILENAME_SIZE];
+  bool success;
+  progress_info proginfo;
+
+  success = FALSE;
 
   cur_input = cur_output = 0;
   bytes_have = (unsigned long)files[cur_input]->data_size;
   bytes_needed = (unsigned long)files[cur_output]->new_data_size;
 
-  if (0 == reopen_input_file(cur_input))
+  proginfo.initialized = FALSE;
+  proginfo.prefix = "Fixing";
+  proginfo.clause = "-->";
+  proginfo.filename1 = files[0]->filename;
+  proginfo.filedesc1 = files[0]->m_ss;
+  proginfo.filename2 = NULL;
+  proginfo.filedesc2 = NULL;
+  proginfo.bytes_total = 1;
+
+  if (!open_this_file(cur_output,outfilename,&proginfo))
     goto cleanup;
 
-  if (0 == open_output_file(cur_output,outfilename))
+  if (!reopen_input_file(cur_input,&proginfo))
     goto cleanup;
-
-  printf("%s --> %s ... ",files[cur_input]->filename,outfilename);
-  fflush(stdout);
 
   while (cur_input < numfiles && cur_output < numfiles) {
     bytes_to_xfer = min(bytes_have,bytes_needed);
 
-    if (transfer_n_bytes(files[cur_input]->input,files[cur_output]->output,bytes_to_xfer) != bytes_to_xfer) {
+    if (transfer_n_bytes(files[cur_input]->input,files[cur_output]->output,bytes_to_xfer,&proginfo) != bytes_to_xfer) {
+      prog_error(&proginfo);
       st_warning("error while transferring %lu bytes of data",bytes_to_xfer);
       goto cleanup;
     }
@@ -488,126 +312,126 @@ static void write_fixed_files()
     bytes_needed -= bytes_to_xfer;
 
     if (0 == bytes_have) {
-      printf("done.\n");
       close_input_stream(files[cur_input]);
       files[cur_input]->input = NULL;
       cur_input++;
       if (cur_input < numfiles) {
         bytes_have = (unsigned long)files[cur_input]->data_size;
 
-        if (0 == reopen_input_file(cur_input))
+        if (!reopen_input_file(cur_input,&proginfo))
           goto cleanup;
-
-        make_outfilename(files[cur_input]->filename,outfilename);
-
-        printf("%s --> %s ... ",files[cur_input]->filename,outfilename);
-        fflush(stdout);
       }
     }
 
     if (0 == bytes_needed) {
+      prog_success(&proginfo);
+
       if (numfiles - 1 == cur_output) {
-        if (1 == pad) {
-          if (0 != pad_bytes) {
-            if (pad_bytes != write_padding(files[cur_output]->output,pad_bytes)) {
+        if (pad) {
+          if (pad_bytes) {
+            if (pad_bytes != write_padding(files[cur_output]->output,pad_bytes,NULL)) {
+              prog_error(&proginfo);
               st_warning("error while padding with %d zero-bytes",pad_bytes);
               goto cleanup;
             }
-            printf("Padded '%s' with %d zero-bytes.\n",outfilename,pad_bytes);
+            st_info("Padded last file with %d zero-bytes.\n",pad_bytes);
           }
           else
-            printf("No padding needed for '%s'.\n",outfilename);
+            st_info("No padding needed.\n");
         }
         else {
-          printf("File '%s' was not padded, ",outfilename);
-          if (0 != pad_bytes)
-            printf("though it needs %d bytes of padding.\n",pad_bytes);
+          st_info("Last file was not padded, ");
+          if (pad_bytes)
+            st_info("though it needs %d bytes of padding.\n",pad_bytes);
           else
-            printf("nor was it needed.\n");
+            st_info("nor was it needed.\n");
 
-          if ((files[cur_output]->new_data_size & 1) && (1 != write_padding(files[cur_output]->output,1))) {
+          if ((files[cur_output]->new_data_size & 1) && (1 != write_padding(files[cur_output]->output,1,NULL))) {
+            prog_error(&proginfo);
             st_warning("error while NULL-padding odd-sized data chunk");
             goto cleanup;
           }
         }
       }
+
       close_output_stream(files[cur_output]);
       files[cur_output]->output = NULL;
       cur_output++;
       if (cur_output < numfiles) {
         bytes_needed = (unsigned long)files[cur_output]->new_data_size;
 
-        if (0 == open_output_file(cur_output,outfilename))
+        if (!open_this_file(cur_output,outfilename,&proginfo))
           goto cleanup;
       }
     }
   }
 
-  success = 1;
+  success = TRUE;
 
 cleanup:
-  if (0 == success) {
+  if (!success) {
     close_output_stream(files[cur_output]);
-    remove_file(op,outfilename);
-    st_error("fix failed");
+    remove_file(outfilename);
+    st_error("failed to fix files");
   }
+
+  return success;
 }
 
-static void process_files(int argc,char **argv,int start)
+static bool process(int argc,char **argv,int start)
 {
-  int i,j,remainder,
-      badfiles = 0,
-      needs_fixing = 0,
-      found_errors = 0;
+  int i,j,remainder;
+  bool needs_fixing = FALSE,found_errors = FALSE,success;
 
   if (NULL == (files = malloc((numfiles + 1) * sizeof(wave_info *))))
     st_error("could not allocate memory for file info array");
 
-  for (i=0;i<numfiles;i++)
-    if (NULL == (files[i] = new_wave_info(argv[start+i])))
-      badfiles++;
+  for (i=0;i<numfiles;i++) {
+    if (NULL == (files[i] = new_wave_info(argv[start+i]))) {
+      st_error("could not open file: [%s]",argv[start+i]);
+    }
+  }
 
   files[numfiles] = NULL;
-
-  if (badfiles)
-    st_error("could not open %d file%s, see above error messages",badfiles,(badfiles>1)?"s":"");
 
   /* validate files */
   for (i=0;i<numfiles;i++) {
     if (PROB_NOT_CD(files[i])) {
-      st_warning("file '%s' is not CD-quality",files[i]->filename);
-      found_errors = 1;
+      st_warning("file is not CD-quality: [%s]",files[i]->filename);
+      found_errors = TRUE;
     }
     if (PROB_HDR_INCONSISTENT(files[i])) {
-      st_warning("file '%s' has an inconsistent header",files[i]->filename);
-      found_errors = 1;
+      st_warning("file has an inconsistent header: [%s]",files[i]->filename);
+      found_errors = TRUE;
     }
     if (PROB_TRUNCATED(files[i])) {
-      st_warning("file '%s' seems to be truncated",files[i]->filename);
-      found_errors = 1;
+      st_warning("file seems to be truncated: [%s]",files[i]->filename);
+      found_errors = TRUE;
     }
     if (PROB_BAD_BOUND(files[i]))
-      needs_fixing = 1;
+      needs_fixing = TRUE;
   }
 
-  if (0 != found_errors)
+  if (found_errors)
     st_error("could not fix files due to errors, see above");
 
-  if (0 == needs_fixing)
+  if (check_only)
+    exit(needs_fixing ? ST_EXIT_SUCCESS : ST_EXIT_ERROR);
+
+  if (!needs_fixing)
     st_error("everything seems fine, no need for fixing");
 
-  if (1 == order)
-    alter_file_order(files,numfiles);
+  reorder_files(files,numfiles);
 
   i = 0;
-  while (0 == PROB_BAD_BOUND(files[i]))
+  while (!PROB_BAD_BOUND(files[i]))
     i++;
 
-  if (1 == skip) {
+  if (skip) {
     if (i != 0) {
       st_warning("skipping first %d file%s because %s would not be changed",i,(1==i)?"":"s",(1==i)?"it":"they");
       for (j=0;j<i;j++)
-        free(files[j]);
+        st_free(files[j]);
       for (j=i;j<numfiles;j++) {
         files[j-i] = files[j];
         files[j] = NULL;
@@ -615,9 +439,6 @@ static void process_files(int argc,char **argv,int start)
       numfiles -= i;
     }
   }
-  else
-    if (1 == warned)
-      printf("\n");
 
   if (numfiles < 2)
     st_error("need two or more files to process");
@@ -637,27 +458,26 @@ static void process_files(int argc,char **argv,int start)
   calculation_sanity_check();
 
   remainder = files[numfiles-1]->new_data_size % CD_BLOCK_SIZE;
-  if (0 != remainder)
+  if (remainder)
     pad_bytes = CD_BLOCK_SIZE - remainder;
 
-  if (1 == preview)
-    show_potential_changes();
-  else
-    write_fixed_files();
+  success = write_fixed_files();
 
   for (i=0;i<numfiles;i++)
-    free(files[i]);
+    st_free(files[i]);
 
-  free(files);
+  st_free(files);
+
+  return success;
 }
 
-static void fix_main(int argc,char **argv,int start)
+static bool fix_main(int argc,char **argv)
 {
   int first_arg;
 
-  parse(argc,argv,start,&first_arg);
+  parse(argc,argv,&first_arg);
 
   numfiles = argc - first_arg;
 
-  process_files(argc,argv,first_arg);
+  return process(argc,argv,first_arg);
 }

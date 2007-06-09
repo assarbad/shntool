@@ -1,10 +1,10 @@
 /*  core_shntool.c - functions to handle mode verification and execution
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,176 +13,183 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: core_shntool.c,v 1.25 2004/04/12 03:01:49 jason Exp $
- */
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include "shntool.h"
-#include "misc.h"
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+CVSID("$Id: core_shntool.c,v 1.81 2007/06/01 01:28:20 jason Exp $")
 
-char *progname,
-     *progmode = NULL,
-     fullprogname[PROGNAME_SIZE],
-     *author = AUTHOR,
-     *version = RELEASE,
-     *copyright = COPYRIGHT,
-     *urls = URLS;
+private_opts st_priv;
 
-int aliased = 0,
-    shntool_debug = 0;
+void st_version()
+{
+  st_info(
+          "%s%s " RELEASE "\n"
+          COPYRIGHT " " AUTHOR "\n"
+          "\n"
+          "shorten utilities pages:\n"
+          "\n"
+          "  " URL1 "\n"
+          "  " URL2 "\n"
+          "\n"
+          "This is free software.  You may redistribute copies of it under the terms of\n"
+          "the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.\n"
+          "There is NO WARRANTY, to the extent permitted by law.\n"
+          "\n"
+          ,st_priv.fullprogname,(st_priv.progmode)?" mode module":""
+         );
+}
 
 static void show_supported_mode_modules()
 {
   int i;
 
-  printf("Supported modes:\n");
-  printf("\n");
-  for (i=0;modes[i];i++)
-    printf("  %" MAX_MODULE_NAME_LENGTH "s  (%s)\n",modes[i]->name,modes[i]->description);
-  printf("\n");
-  printf("  For help with any of the above modes, type:\n");
-  printf("\n");
-  printf("    %s mode -h\n",progname);
-  printf("\n");
+  st_info("%s %s supported modes:\n",st_priv.fullprogname,RELEASE);
+  st_info("\n");
+  st_info("   mode  description\n");
+  st_info("   ----  -----------\n");
+  for (i=0;st_modes[i];i++)
+    st_info("  %5s  %s\n",st_modes[i]->name,st_modes[i]->description);
+  st_info("\n");
+  st_info("  For help with any of the above modes, type:  '%s mode -h'\n",st_priv.progname);
+  st_info("\n");
 }
 
 static void show_supported_format_modules()
 {
   int i;
+  char tmp[BUF_SIZE];
 
-  printf("Supported file formats:\n");
-  for (i=0;formats[i];i++) {
-    printf("\n");
-    printf("  %" MAX_MODULE_NAME_LENGTH "s  (%s)\n",formats[i]->name,formats[i]->description);
-    printf("    %" MAX_MODULE_NAME_LENGTH "s+ audio %sformat - supports ","",(formats[i]->is_compressed)?"compression ":"");
+  st_info("%s %s supported file formats:\n",st_priv.fullprogname,RELEASE);
+  st_info("\n");
 
-    if (formats[i]->input_func && formats[i]->output_func) {
-      if (formats[i]->encoder && formats[i]->decoder && (0 == strcmp(formats[i]->encoder,formats[i]->decoder))) {
-        printf("input and output via '%s'",formats[i]->encoder);
+  st_info(" format    ext     input    output  description\n");
+  st_info(" ------    ---     -----    ------  -----------\n");
+  for (i=0;st_formats[i];i++) {
+    st_info("  %5s",st_formats[i]->name);
+
+    if (st_formats[i]->supports_output && st_formats[i]->extension) {
+      st_snprintf(tmp,BUF_SIZE,".%s",st_formats[i]->extension);
+      st_info("  %5s",tmp);
+    }
+    else
+      st_info("      -");
+
+    if (st_formats[i]->supports_input) {
+      if (st_formats[i]->decoder) {
+        st_info("  %8s",st_formats[i]->decoder);
       }
       else {
-        printf("input");
-        if (formats[i]->decoder) {
-          printf(" via '%s'",formats[i]->decoder);
-        }
-        printf(" and output");
-        if (formats[i]->encoder) {
-          printf(" via '%s'",formats[i]->encoder);
-        }
+        st_info("   shntool");
       }
     }
     else {
-      if (formats[i]->input_func) {
-        printf("input only");
-        if (formats[i]->decoder) {
-          printf(" via '%s'",formats[i]->decoder);
-        }
+      st_info("         -");
+    }
+
+    if (st_formats[i]->supports_output) {
+      if (st_formats[i]->encoder) {
+        st_info("  %8s",st_formats[i]->encoder);
       }
       else {
-        printf("output only");
-        if (formats[i]->encoder) {
-          printf(" via '%s'",formats[i]->encoder);
-        }
+        st_info("   shntool");
       }
     }
-    printf("\n");
+    else {
+      st_info("         -");
+    }
+
+    st_info("  %s\n",st_formats[i]->description);
   }
+  st_info("\n");
 }
 
-static void show_usage()
+static void core_help()
 {
-  printf("Usage: %s mode ...\n",progname);
-  printf("       %s [OPTIONS]\n",progname);
-  printf("\n");
-  printf("Options:\n");
-  printf("\n");
-  printf("  -m    shows detailed mode module information\n");
-  printf("  -f    shows detailed format module information\n");
-  printf("  -v    shows version information\n");
-  printf("  -h    shows this help screen\n");
-  printf("\n");
-
-  exit(0);
+  st_info("Usage: %s mode ...\n",st_priv.progname);
+  st_info("       %s [OPTIONS]\n",st_priv.progname);
+  st_info("\n");
+  st_info("Options:\n");
+  st_info("\n");
+  st_info("  -m      show detailed mode module information\n");
+  st_info("  -f      show detailed format module information\n");
+  st_info("  -v      show version information\n");
+  st_info("  -h      show this help screen\n");
+  st_info("\n");
 }
 
 static void module_sanity_check()
 {
-  int i;
+  int i,j;
 
-  if (modes[0]) {
-    for (i=0;modes[i];i++) {
-      if (NULL == modes[i]->name)
+  if (st_modes[0]) {
+    for (i=0;st_modes[i];i++) {
+      if (NULL == st_modes[i]->name)
         st_error("found a mode module without a name");
 
-      if (NULL == modes[i]->description)
-        st_error("mode module '%s' has no description",modes[i]->name);
+      if (NULL == st_modes[i]->description)
+        st_error("mode module has no description: [%s]",st_modes[i]->name);
 
-      if (NULL == modes[i]->run_main)
-        st_error("mode module '%s' does not provide run_main()",modes[i]->name);
+      if (NULL == st_modes[i]->run_main)
+        st_error("mode module does not provide run_main(): [%s]",st_modes[i]->name);
     }
 
-    for (i=1;modes[i];i++)
-      if (0 == strcmp(modes[0]->name,modes[i]->name))
-        st_error("found modes with identical name: %s",modes[0]->name);
+    for (i=0;st_modes[i];i++) {
+      for (j=i+1;st_modes[j];j++) {
+        if (!strcmp(st_modes[i]->name,st_modes[j]->name))
+          st_error("found modes with identical name: [%s]",st_modes[i]->name);
+      }
+    }
   }
   else
     st_error("no mode modules found");
 
-  if (formats[0]) {
-    for (i=0;formats[i];i++) {
-      if (NULL == formats[i]->name)
+  if (st_formats[0]) {
+    for (i=0;st_formats[i];i++) {
+      if (NULL == st_formats[i]->name)
         st_error("found a format module without a name");
 
-      if (NULL == formats[i]->description)
-        st_error("format module '%s' has no description",formats[i]->name);
+      if (NULL == st_formats[i]->description)
+        st_error("format module has no description: [%s]",st_formats[i]->name);
 
-      if (NULL == formats[i]->extension)
-        st_error("format module '%s' has no extension",formats[i]->name);
+      if (!st_formats[i]->supports_input && !st_formats[i]->supports_output)
+        st_error("format module doesn't support input or output: [%s]",st_formats[i]->name);
 
-      if (NULL == formats[i]->is_our_file)
-        st_error("format module '%s' does not provide is_our_file()",formats[i]->name);
+      if (!st_formats[i]->supports_input && st_formats[i]->decoder)
+        st_error("format module doesn't support input but defines a decoder: [%s]",st_formats[i]->name);
 
-      if (NULL == formats[i]->input_func && NULL == formats[i]->output_func)
-        st_error("format module '%s' doesn't support input or output",formats[i]->name);
-
-      if (NULL == formats[i]->input_func && formats[i]->decoder)
-        st_error("format module '%s' doesn't support input but defines a decoder '%s'",formats[i]->name,formats[i]->decoder);
-
-      if (NULL == formats[i]->output_func && formats[i]->encoder)
-        st_error("format module '%s' doesn't support output but defines an encoder '%s'",formats[i]->name,formats[i]->encoder);
+      if (!st_formats[i]->supports_output && st_formats[i]->encoder)
+        st_error("format module doesn't support output but defines an encoder: [%s]",st_formats[i]->name);
     }
 
-    for (i=1;formats[i];i++)
-      if (0 == strcmp(formats[0]->name,formats[i]->name))
-        st_error("found formats with identical name: %s",formats[0]->name);
+    for (i=0;st_formats[i];i++) {
+      for (j=i+1;st_formats[j];j++) {
+        if (!strcmp(st_formats[i]->name,st_formats[j]->name))
+          st_error("found formats with identical name: [%s]",st_formats[i]->name);
+      }
+    }
   }
-  else
+  else {
     st_error("no file formats modules found");
+  }
 }
 
-static void parse_main(int argc,char **argv)
+static bool parse_main(int argc,char **argv)
 {
-  int i;
+  int i,j;
+  int c;
 
   /* look for a module alias matching progname */
 
-  for (i=0;modes[i];i++) {
-    if (NULL != modes[i]->alias && 0 == strcmp(progname,modes[i]->alias)) {
-      aliased = 1;
-      progmode = modes[i]->name;
-      modes[i]->run_main(argc,argv,1);
-      return;
+  for (i=0;st_modes[i];i++) {
+    if (NULL != st_modes[i]->alias && !strcmp(st_priv.progname,st_modes[i]->alias)) {
+      st_priv.mode = st_modes[i];
+      st_priv.is_aliased = TRUE;
+      st_priv.progmode = st_modes[i]->name;
+      return st_modes[i]->run_main(argc,argv);
     }
   }
 
@@ -191,50 +198,120 @@ static void parse_main(int argc,char **argv)
   if (argc < 2)
     st_help("missing arguments");
 
-  for (i=0;modes[i];i++) {
-    if (0 == strcmp(argv[1],modes[i]->name)) {
+  for (i=0;st_modes[i];i++) {
+    if (!strcmp(argv[1],st_modes[i]->name)) {
       /* found mode - now run it and quit */
-      progmode = modes[i]->name;
-      strcat(fullprogname," ");
-      strcat(fullprogname,progmode);
-      modes[i]->run_main(argc,argv,2);
-      return;
+      st_priv.mode = st_modes[i];
+      st_priv.progmode = st_modes[i]->name;
+      strcat(st_priv.fullprogname," ");
+      strcat(st_priv.fullprogname,st_priv.progmode);
+
+      /* remove mode name from arg list (is this portable?) */
+      for (j=1;j<argc-1;j++)
+        argv[j] = argv[j+1];
+      argv[argc-1] = NULL;
+      argc--;
+
+      return st_modes[i]->run_main(argc,argv);
     }
   }
 
-  if (argc > 1 && 0 == strcmp(argv[1],"-h"))
-    show_usage();
-  else if (argc > 1 && 0 == strcmp(argv[1],"-v"))
-    internal_version();
-  else if (argc > 1 && 0 == strcmp(argv[1],"-m"))
-    show_supported_mode_modules();
-  else if (argc > 1 && 0 == strcmp(argv[1],"-f"))
-    show_supported_format_modules();
-  else if (argc > 1 && 0 == strcmp(argv[1],"-j")) {
-    printf("Guru Meditashn #00000002.9091968B\n");
+  while ((c=getopt(argc,argv,GLOBAL_OPTS_CORE)) != -1) {
+    switch (c) {
+      case 'f':
+        show_supported_format_modules();
+        exit(ST_EXIT_SUCCESS);
+        break;
+      case 'j':
+        st_info("Guru Meditashn #00000002.9091968B\n");
+        exit(ST_EXIT_SUCCESS);
+        break;
+      case 'm':
+        show_supported_mode_modules();
+        exit(ST_EXIT_SUCCESS);
+        break;
+      case '?':
+      case 'h':
+        if ('?' == c)
+          st_info("\n");
+        core_help();
+        exit(('?' == c) ? ST_EXIT_ERROR : ST_EXIT_SUCCESS);
+        break;
+      case 'v':
+        st_version();
+        exit(ST_EXIT_SUCCESS);
+        break;
+    }
   }
-  else {
-    /* didn't find any matching modes */
-    st_help("invalid mode or option: %s",argv[1]);
+
+  if (optind < argc)
+    st_help("invalid mode: [%s]",argv[optind]);
+
+  return FALSE;
+}
+
+static void modules_init()
+{
+  int i;
+
+  /* sanity checks for modules */
+  module_sanity_check();
+
+  /* initialize format modules */
+  for (i=0;st_formats[i];i++) {
+    arg_init(st_formats[i]);
   }
+}
+
+static void globals_init(char *program)
+{
+  char *p;
+  int n;
+
+#ifdef WIN32
+  setvbuf(stdout,NULL,_IONBF,0);
+#else
+  signal(SIGPIPE,SIG_IGN);
+#endif
+
+  /* public globals */
+  st_ops.output_directory = ".";
+  st_ops.output_prefix = "";
+  st_ops.output_postfix = "";
+  st_ops.output_format = NULL;
+
+  /* private globals */
+  st_priv.progname = ((p = strrchr(program,PATHSEPCHAR))) ? (p + 1) : program;
+  if ((p = extname(st_priv.progname)))
+    *(p-1) = 0;
+  strcpy(st_priv.fullprogname,st_priv.progname);
+  st_priv.progmode = NULL;
+  st_priv.clobber_action = CLOBBER_ACTION_ASK;
+  st_priv.progress_type = PROGRESS_PERCENT;
+  st_priv.reorder_type = ORDER_NATURAL;
+  st_priv.is_aliased = FALSE;
+  st_priv.show_hmmss = FALSE;
+  st_priv.suppress_warnings = FALSE;
+  st_priv.suppress_stderr = FALSE;
+
+  p = scan_env(SHNTOOL_DEBUG_ENV);
+  n = p ? atoi(p) : 0;
+
+  st_priv.debug_level = (n > 0) ? n : 0;
 }
 
 int main(int argc,char **argv)
 {
-  signal(SIGPIPE,SIG_IGN);
+  bool success;
 
-  /* set up globals */
-  progname = (0 == strrchr(argv[0],'/')) ? argv[0] : strrchr(argv[0],'/') + 1;
-  strcpy(fullprogname,progname);
+  /* initialize global variables */
+  globals_init(argv[0]);
 
-  /* show debugging output? */
-  shntool_debug = getenv(SHNTOOL_DEBUG_ENV) ? 1 : 0;
-
-  /* sanity check for modules */
-  module_sanity_check();
+  /* initialize modules */
+  modules_init();
 
   /* parse command line */
-  parse_main(argc,argv);
+  success = parse_main(argc,argv);
 
-  return 0;
+  return (success) ? ST_EXIT_SUCCESS : ST_EXIT_ERROR;
 }
