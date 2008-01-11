@@ -1,3 +1,16 @@
+version 3.0.6 (2007-12-16)
+  + support for TAK encoding (requires TAK 1.0.3+)
+
+version 3.0.5 (2007-10-22)
+  + hash mode: show progress indicators
+  + cmp mode: new -c option to specify size of byte-shift comparison buffer
+
+version 3.0.4 (2007-09-07)
+  + no longer ignore raw WavPack files (wvunpack creates WAVE header for us)
+  + support for TTA 3.4.x as well as TTA encoding
+  + fixed display bug in joined mode when input files were not CD-quality
+  + split mode: new -m option to allow character manipulation of CUE filenames
+
 version 3.0.3 (2007-06-01)
   + improved use of exit codes
   + mkw format: removed deprecated input kluge

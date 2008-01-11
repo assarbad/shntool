@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([shntool],[3.0.3],[shnutils@freeshell.org])
-AC_REVISION([$Id: configure.ac,v 1.107 2007/06/01 04:37:59 jason Exp $])
+AC_INIT([shntool],[3.0.6],[shnutils@freeshell.org])
+AC_REVISION([$Id: configure.ac,v 1.113 2007/12/16 16:11:07 jason Exp $])
 
 AC_CONFIG_SRCDIR([src/core_shntool.c])
 AC_CONFIG_HEADERS([include/config.h])

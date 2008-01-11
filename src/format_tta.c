@@ -18,24 +18,21 @@
 
 #include "format.h"
 
-CVSID("$Id: format_tta.c,v 1.21 2007/01/06 07:40:52 jason Exp $")
+CVSID("$Id: format_tta.c,v 1.22 2007/07/27 07:26:11 jason Exp $")
 
 #define TTA "ttaenc"
 
 #define TTA_MAGIC "TTA1"
 
-#ifdef WIN32
-static char default_decoder_args[] = "-d -s -o - " FILENAME_PLACEHOLDER;
-#else
-static char default_decoder_args[] = "-d -s -o " TERMODEVICE " " FILENAME_PLACEHOLDER;
-#endif
+static char default_decoder_args[] = "-d -o - " FILENAME_PLACEHOLDER;
+static char default_encoder_args[] = "-e -o " FILENAME_PLACEHOLDER " -";
 
 format_module format_tta = {
   "tta",
   "TTA Lossless Audio Codec",
   CVSIDSTR,
   TRUE,
-  FALSE,
+  TRUE,
   FALSE,
   TRUE,
   TRUE,
@@ -46,8 +43,8 @@ format_module format_tta = {
   "tta",
   TTA,
   default_decoder_args,
-  NULL,
-  NULL,
+  TTA,
+  default_encoder_args,
   NULL,
   NULL,
   NULL,

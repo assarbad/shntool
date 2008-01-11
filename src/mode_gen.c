@@ -19,7 +19,7 @@
 #include <string.h>
 #include "mode.h"
 
-CVSID("$Id: mode_gen.c,v 1.49 2007/06/01 03:53:40 jason Exp $")
+CVSID("$Id: mode_gen.c,v 1.50 2007/10/22 06:50:35 jason Exp $")
 
 static bool gen_main(int,char **);
 static void gen_help(void);
@@ -95,9 +95,6 @@ static bool process()
 
   create_output_filename("","",outfilename);
 
-  if (NULL == (output = open_output_stream(outfilename,&output_proc)))
-    st_error("could not open output file: [%s]",outfilename);
-
   info->channels = CD_CHANNELS;
   info->samples_per_sec = CD_SAMPLES_PER_SEC;
   info->avg_bytes_per_sec = CD_RATE;
@@ -132,6 +129,9 @@ static bool process()
   proginfo.bytes_total = bytes_left + CANONICAL_HEADER_SIZE;
 
   prog_update(&proginfo);
+
+  if (NULL == (output = open_output_stream(outfilename,&output_proc)))
+    st_error("could not open output file: [%s]",outfilename);
 
   if (write_n_bytes(output,header,CANONICAL_HEADER_SIZE,&proginfo) != CANONICAL_HEADER_SIZE) {
     prog_error(&proginfo);

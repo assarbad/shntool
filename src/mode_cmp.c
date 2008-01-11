@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_cmp.c,v 1.83 2007/06/01 03:53:40 jason Exp $")
+CVSID("$Id: mode_cmp.c,v 1.84 2007/10/22 06:04:11 jason Exp $")
 
 static bool cmp_main(int,char **);
 static void cmp_help(void);
@@ -33,13 +33,12 @@ mode_module mode_cmp = {
   cmp_help
 };
 
-#define CMP_SIZE 529200      /* 3 seconds of CD-quality data.  Should be enough to catch
-                                2-second silences added to beginning of ripped tracks */
 #define CMP_MATCH_SIZE 2352  /* arbitrary number of bytes that must match before attempting
                                 to check whether shifted data in the files is identical */
 static bool align = FALSE;
 static bool list = FALSE;
 static int fuzz = 0;
+static wlong shift_secs = 3;
 
 static void cmp_help()
 {
@@ -47,11 +46,11 @@ static void cmp_help()
   st_info("\n");
   st_info("Mode-specific options:\n");
   st_info("\n");
+  st_info("  -c secs check the first secs seconds of data for byte shift (default is %d)\n",shift_secs);
   st_info("  -f fuzz fuzz factor: allow up to fuzz mismatches when detecting a byte-shift\n");
   st_info("  -h      show this help screen\n");
   st_info("  -l      list offsets and values of all differing bytes\n");
   st_info("  -s      check if WAVE data in the files is identical modulo a byte-shift\n");
-  st_info("          (within first %d bytes, or first %d seconds of CD-quality data)\n",CMP_SIZE,CMP_SIZE/CD_RATE);
   st_info("\n");
   st_info("If no filenames are given, then filenames are read from the terminal.\n");
   st_info("\n");
@@ -61,8 +60,15 @@ static void parse(int argc,char **argv,int *first_arg)
 {
   int c;
 
-  while ((c = st_getopt(argc,argv,"f:ls")) != -1) {
+  while ((c = st_getopt(argc,argv,"c:f:ls")) != -1) {
     switch (c) {
+      case 'c':
+        if (NULL == optarg)
+          st_help("missing seconds for byte-shift comparison");
+        shift_secs = atoi(optarg);
+        if (shift_secs <= 0)
+          st_help("seconds for byte-shift comparison must be positive");
+        break;
       case 'f':
         if (NULL == optarg)
           st_help("missing fuzz factor");
@@ -154,7 +160,8 @@ static bool cmp_files(wave_info *info1,wave_info *info2,int shift)
         bytes_checked = 0,
         bytes,
         shifted_data_size1 = info1->data_size,
-        shifted_data_size2 = info2->data_size;
+        shifted_data_size2 = info2->data_size,
+        xfer_size;
   int offset, real_shift, i;
   bool differed = FALSE, did_l_header = FALSE, success;
   progress_info proginfo;
@@ -174,13 +181,15 @@ static bool cmp_files(wave_info *info1,wave_info *info2,int shift)
 
   prog_update(&proginfo);
 
+  xfer_size = max(XFER_SIZE,(shift_secs * info1->rate));
+
   /* kluge to work around free(buf2) dumping core if malloc()'d separately */
-  if (NULL == (buf1 = malloc(2 * XFER_SIZE * sizeof(unsigned char)))) {
+  if (NULL == (buf1 = malloc(2 * xfer_size * sizeof(unsigned char)))) {
     prog_error(&proginfo);
-    st_error("could not allocate %d-byte comparison buffer",XFER_SIZE);
+    st_error("could not allocate %d-byte comparison buffer",xfer_size);
   }
 
-  buf2 = buf1 + XFER_SIZE;
+  buf2 = buf1 + xfer_size;
 
   real_shift = (shift < 0) ? -shift : shift;
 
@@ -214,7 +223,7 @@ static bool cmp_files(wave_info *info1,wave_info *info2,int shift)
   proginfo.bytes_total = bytes_to_check;
 
   while (bytes_to_check > 0) {
-    bytes = min(bytes_to_check,XFER_SIZE);
+    bytes = min(bytes_to_check,xfer_size);
     if (read_n_bytes(info1->input,buf1,(int)bytes,&proginfo) != (int)bytes) {
       prog_error(&proginfo);
       st_error("error while reading %d bytes from file: [%s]",(int)bytes,info1->filename);
@@ -287,7 +296,7 @@ static void open_and_read_beginning(wave_info *info,unsigned char *buf,int bytes
 static bool shift_comparison(wave_info *info1,wave_info *info2)
 {
   unsigned char *buf1,*buf2;
-  wlong bytes;
+  wlong bytes,cmp_size;
   int i,shift = 0,real_shift = 0;
   bool found_possible_shift = FALSE;
   progress_info proginfo;
@@ -303,7 +312,8 @@ static bool shift_comparison(wave_info *info1,wave_info *info2)
 
   prog_update(&proginfo);
 
-  bytes = min(min(info1->data_size,info2->data_size),CMP_SIZE);
+  cmp_size = shift_secs * info1->rate;
+  bytes = min(min(info1->data_size,info2->data_size),cmp_size);
 
   if (NULL == (buf1 = malloc(2 * bytes * sizeof(unsigned char)))) {
     prog_error(&proginfo);
@@ -334,7 +344,7 @@ static bool shift_comparison(wave_info *info1,wave_info *info2)
 
   if (!found_possible_shift) {
     prog_error(&proginfo);
-    st_error("these files do not share identical data within the first %ld bytes.");
+    st_error("these files do not share identical data within the first %ld bytes.",cmp_size);
   }
 
   prog_success(&proginfo);

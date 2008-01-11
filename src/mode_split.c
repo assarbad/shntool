@@ -20,7 +20,7 @@
 #include <ctype.h>
 #include "mode.h"
 
-CVSID("$Id: mode_split.c,v 1.135 2007/06/01 04:33:25 jason Exp $")
+CVSID("$Id: mode_split.c,v 1.137 2007/09/07 04:38:09 jason Exp $")
 
 static bool split_main(int,char **);
 static void split_help(void);
@@ -56,6 +56,7 @@ static char *repeated_split_point = NULL;
 static char *leadin = NULL;
 static char *leadout = NULL;
 static char *extract_tracks = NULL;
+static char *manipulate_chars = NULL;
 
 typedef struct _cue_info {
   /* global */
@@ -90,6 +91,7 @@ static void split_help()
   st_info("  -f file read split point data from file\n");
   st_info("  -h      show this help screen\n");
   st_info("  -l len  split input file into files of length len (*)\n");
+  st_info("  -m str  specify character manipulation string (alternating from/to)\n");
   st_info("  -n fmt  specify file count output format (default is %s -- ",SPLIT_NUM_FORMAT);
   for (i=0;i<3;i++) {
     st_info(SPLIT_NUM_FORMAT ", ",i+1);
@@ -114,7 +116,7 @@ static void parse(int argc,char **argv,int *first_arg)
   st_ops.output_prefix = SPLIT_PREFIX;
   cueinfo.format = NULL;
 
-  while ((c = st_getopt(argc,argv,"c:e:f:l:n:t:u:x:")) != -1) {
+  while ((c = st_getopt(argc,argv,"c:e:f:l:n:m:t:u:x:")) != -1) {
     switch (c) {
       case 'c':
         if (NULL == optarg)
@@ -137,6 +139,11 @@ static void parse(int argc,char **argv,int *first_arg)
         if (NULL == optarg)
           st_error("missing repeated split point");
         repeated_split_point = optarg;
+        break;
+      case 'm':
+        if (NULL == optarg)
+          st_error("missing character manipulation list");
+        manipulate_chars = optarg;
         break;
       case 'n':
         if (NULL == optarg)
@@ -397,14 +404,31 @@ static void adjust_splitfile(int whichfile)
   }
 }
 
+static void xlate_chars(char *str,char *xlstr)
+{
+  int i;
+  char *p;
+
+  if (!str || !xlstr)
+    return;
+
+  for (i=0;xlstr[i] && xlstr[i+1];i+=2) {
+    for (p=str;*p;p++) {
+      if (xlstr[i] == *p) {
+        *p = xlstr[i+1];
+      }
+    }
+  }
+}
+
 static void cue_sprintf(int tracknum,char *filename)
 {
-  char *p,c[2],num[8],psc[2];
+  char *p,c[2],num[8],psc[4];
 
   p = cueinfo.format;
   c[1] = 0;
   strcpy(filename,"");
-  st_snprintf(psc,2,"%c",PATHSEPCHAR);
+  st_snprintf(psc,4,"%c",PATHSEPCHAR);
 
   while (*p) {
     if ('%' == *p) {
@@ -435,12 +459,12 @@ static void cue_sprintf(int tracknum,char *filename)
     p++;
   }
 
+  xlate_chars(filename,manipulate_chars);
+
   if (extract_track[tracknum] && strstr(filename,psc)) {
     st_warning("converting illegal path character '%c' to '-' in CUE-originated filename: [%s]",PATHSEPCHAR,filename);
-    for (p=filename;*p;p++) {
-      if (PATHSEPCHAR == *p)
-        *p = '-';
-    }
+    st_snprintf(psc,4,"%c%c",PATHSEPCHAR,'-');
+    xlate_chars(filename,psc);
   }
 }
 

@@ -25,7 +25,7 @@
 #include <string.h>
 #include "mode.h"
 
-CVSID("$Id: mode_hash.c,v 1.82 2007/06/01 05:10:43 jason Exp $")
+CVSID("$Id: mode_hash.c,v 1.86 2007/10/22 07:26:24 jason Exp $")
 
 static bool hash_main(int,char **);
 static void hash_help(void);
@@ -45,6 +45,8 @@ enum {
   HASH_SHA1
 };
 
+#define COMPOSITE "composite"
+
 static unsigned long maxbytes;
 static unsigned char audio_hash[32];
 
@@ -53,6 +55,7 @@ static int remaining_bytes = 0;
 static int num_processed = 0;
 static int numfiles;
 static int hash_algorithm = HASH_MD5;
+static progress_info proginfo;
 
 static wave_info **files;
 
@@ -215,7 +218,7 @@ md5_stream (FILE *stream, void *resblock)
 
       while (1)
 	{
-	  n = fread (global_buffer + sum, 1, BLOCKSIZE - sum, stream);
+	  n = read_n_bytes(stream, (unsigned char *)(global_buffer + sum), BLOCKSIZE - sum, &proginfo);
 
 	  sum += n;
       totalbytes += n;  /* shntool */
@@ -668,7 +671,7 @@ sha1_stream (FILE *stream, void *resblock)
       /* Read block.  Take care for partial reads.  */
       while (1)
 	{
-	  n = fread (global_buffer + sum, 1, BLOCKSIZE - sum, stream);
+	  n = read_n_bytes(stream, (unsigned char *)(global_buffer + sum), BLOCKSIZE - sum, &proginfo);
 
 	  sum += n;
       totalbytes += n;  /* shntool */
@@ -1093,17 +1096,26 @@ static bool generate_audio_hash_single(wave_info *info)
 
   success = FALSE;
 
+  proginfo.initialized = FALSE;
+  proginfo.filename2 = info->filename;
+  proginfo.filedesc2 = info->m_ss;
+  proginfo.bytes_total = info->data_size;
+
+  prog_update(&proginfo);
+
   if (!open_input_stream(info)) {
     st_warning("could not reopen input file: [%s]",info->filename);
     return FALSE;
   }
 
   if (NULL == (header = malloc(info->header_size * sizeof(unsigned char)))) {
+    prog_error(&proginfo);
     st_warning("could not allocate %d-byte WAVE header",info->header_size);
     goto cleanup_single1;
   }
 
   if (read_n_bytes(info->input,header,info->header_size,NULL) != info->header_size) {
+    prog_error(&proginfo);
     st_warning("error while discarding %d-byte WAVE header from file: [%s]",info->header_size,info->filename);
     goto cleanup_single2;
   }
@@ -1124,11 +1136,14 @@ static bool generate_audio_hash_single(wave_info *info)
   hash_finish_ctx();
 
   if (retval) {
+    prog_error(&proginfo);
     st_warning("possibly truncated and/or corrupt file: [%s]",info->filename);
     goto cleanup_single2;
   }
 
   success = TRUE;
+
+  prog_success(&proginfo);
 
   print_audio_hash(info->filename);
 
@@ -1218,7 +1233,7 @@ static bool process_file(char *filename)
   return success;
 }
 
-static void composite_init()
+static void composite_init(wlong total)
 {
   if (!composite_hash)
     return;
@@ -1227,6 +1242,13 @@ static void composite_init()
   hash_init_ctx();
 
   remaining_bytes = 0;
+
+  proginfo.initialized = FALSE;
+  proginfo.filename2 = COMPOSITE;
+  proginfo.filedesc2 = NULL;
+  proginfo.bytes_total = total;
+
+  prog_update(&proginfo);
 }
 
 static void composite_finish()
@@ -1244,13 +1266,16 @@ static void composite_finish()
   /* Construct result in desired memory.  */
   hash_finish_ctx();
 
-  print_audio_hash("composite");
+  prog_success(&proginfo);
+
+  print_audio_hash(COMPOSITE);
 }
 
 static bool process(int argc,char **argv,int start)
 {
   int i,j = 0,badfiles = 0;
   char filename[FILENAME_SIZE];
+  wlong total = 0;
   bool success;
 
   success = TRUE;
@@ -1266,6 +1291,7 @@ static bool process(int argc,char **argv,int start)
       badfiles++;
     }
     else {
+      total += files[j]->data_size;
       j++;
     }
   }
@@ -1276,7 +1302,12 @@ static bool process(int argc,char **argv,int start)
 
   reorder_files(files,numfiles);
 
-  composite_init();
+  proginfo.prefix = "Hashing";
+  proginfo.clause = NULL;
+  proginfo.filename1 = NULL;
+  proginfo.filedesc1 = NULL;
+
+  composite_init(total);
 
   if (argc < start + 1) {
     /* no filenames were given, so we're reading files from the terminal. */

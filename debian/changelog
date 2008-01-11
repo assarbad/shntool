@@ -1,3 +1,10 @@
+shntool (3.0.6-1) unstable; urgency=low
+
+  * New upstream version.
+  * Bump Standards-Version to 3.7.3 - no changes.
+
+ -- Joshua Kwan <joshk@triplehelix.org>  Thu, 10 Jan 2008 21:26:02 -0800
+
 shntool (3.0.3-1) unstable; urgency=low
 
   * New upstream major release, whoa! closes: #427809
