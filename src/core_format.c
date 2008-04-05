@@ -1,5 +1,5 @@
 /*  core_format.c - public functions for format modules
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include "shntool.h"
 
-CVSID("$Id: core_format.c,v 1.41 2007/10/22 06:36:27 jason Exp $")
+CVSID("$Id: core_format.c,v 1.42 2008/02/18 23:25:13 jason Exp $")
 
 /* private helper functions */
 

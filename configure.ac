@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([shntool],[3.0.6],[shnutils@freeshell.org])
-AC_REVISION([$Id: configure.ac,v 1.113 2007/12/16 16:11:07 jason Exp $])
+AC_INIT([shntool],[3.0.7],[shnutils@freeshell.org])
+AC_REVISION([$Id: configure.ac,v 1.116 2008/03/03 03:43:03 jason Exp $])
 
 AC_CONFIG_SRCDIR([src/core_shntool.c])
 AC_CONFIG_HEADERS([include/config.h])
@@ -27,7 +27,7 @@ dnl default modes - used if --with-modes is not specified
 ac_build_modes="len fix hash pad join split cat cmp cue conv info strip gen trim"
 
 dnl default file formats - used if --with-formats is not specified
-ac_build_formats="wav aiff shn flac ape ofr lpac wv alac la tta als tak rka bonk kxs mkw wma cust term null"
+ac_build_formats="wav aiff shn flac ape ofr lpac wv alac la tta als tak bonk kxs mkw cust term null"
 
 ac_alternate_modes=
 ac_alternate_formats=
@@ -112,11 +112,9 @@ for format in $ac_current_formats; do
         tta  ) format_tta=true ;;
         als  ) format_als=true ;;
         tak  ) format_tak=true ;;
-        rka  ) format_rka=true ;;
         bonk ) format_bonk=true ;;
         kxs  ) format_kxs=true ;;
         mkw  ) format_mkw=true ;;
-        wma  ) format_wma=true ;;
       esac
     else
       AC_MSG_WARN([missing ${srcdir}/src/format_${format}.c -- format '${format}' will not be compiled])
@@ -190,10 +188,6 @@ fi
 
 if test x$format_tak = xtrue; then
   AC_CHECK_PROG([TAKC],[takc],[yes],[no (install for tak support)])
-fi
-
-if test x$format_rka = xtrue; then
-  AC_CHECK_PROG([RKAU],[rkau],[yes],[no (install for rka support)])
 fi
 
 if test x$format_bonk = xtrue; then

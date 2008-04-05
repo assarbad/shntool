@@ -1,5 +1,5 @@
 /*  mode_join.c - join mode module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 #include <string.h>
 #include "mode.h"
 
-CVSID("$Id: mode_join.c,v 1.107 2007/10/22 06:50:35 jason Exp $")
+CVSID("$Id: mode_join.c,v 1.108 2008/02/18 23:25:14 jason Exp $")
 
 static bool join_main(int,char **);
 static void join_help(void);

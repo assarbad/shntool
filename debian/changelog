@@ -1,3 +1,13 @@
+shntool (3.0.7-1) unstable; urgency=low
+
+  * New upstream release
+  * New maintainer (Closes: #460180)
+  * Added Homepage field to debian/control
+  * Added debian/watch file
+  * debian/copyright date updated
+
+ -- César Gómez Martín <cesar.gomez@gmail.com>  Sat, 05 Apr 2008 02:19:43 +0200
+
 shntool (3.0.6-1) unstable; urgency=low
 
   * New upstream version.

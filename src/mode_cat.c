@@ -1,5 +1,5 @@
 /*  mode_cat.c - cat mode module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_cat.c,v 1.77 2007/06/01 03:53:40 jason Exp $")
+CVSID("$Id: mode_cat.c,v 1.78 2008/02/18 23:25:14 jason Exp $")
 
 static bool cat_main(int,char **);
 static void cat_help(void);

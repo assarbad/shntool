@@ -1,5 +1,5 @@
 /*  mode_split.c - split mode module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -20,7 +20,7 @@
 #include <ctype.h>
 #include "mode.h"
 
-CVSID("$Id: mode_split.c,v 1.137 2007/09/07 04:38:09 jason Exp $")
+CVSID("$Id: mode_split.c,v 1.138 2008/02/18 23:25:14 jason Exp $")
 
 static bool split_main(int,char **);
 static void split_help(void);

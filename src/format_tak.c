@@ -1,5 +1,5 @@
 /*  format_tak.c - tak format module
- *  Copyright (C) 2000-2006  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,15 +18,14 @@
 
 #include "format.h"
 
-CVSID("$Id: format_tak.c,v 1.7 2007/12/16 16:19:11 jason Exp $")
+CVSID("$Id: format_tak.c,v 1.11 2008/02/29 17:21:13 jason Exp $")
 
 #define TAK "takc"
 
 #define TAK_MAGIC "tBaK"
 
-static char default_encoder_args[] = "-e -ihs - " FILENAME_PLACEHOLDER;
-
-static FILE *open_for_input(char *,proc_info *);
+static char default_decoder_args[] = "-d -silent " FILENAME_PLACEHOLDER " -";
+static char default_encoder_args[] = "-e -silent -ihs - " FILENAME_PLACEHOLDER;
 
 format_module format_tak = {
   "tak",
@@ -37,28 +36,19 @@ format_module format_tak = {
   FALSE,
   TRUE,
   TRUE,
-  FALSE,
+  TRUE,
   NULL,
   TAK_MAGIC,
   0,
   "tak",
-  NULL,
-  NULL,
+  TAK,
+  default_decoder_args,
   TAK,
   default_encoder_args,
   NULL,
-  open_for_input,
+  NULL,
   NULL,
   NULL,
   NULL,
   NULL
 };
-
-static FILE *open_for_input(char *filename,proc_info *pinfo)
-{
-  st_debug1("encountered unsupported TAK file: [%s]",filename);
-
-  pinfo->pid = NO_CHILD_PID;
-
-  return NULL;
-}

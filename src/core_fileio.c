@@ -1,5 +1,5 @@
 /*  core_fileio.c - file I/O functions
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 #include <string.h>
 #include "shntool.h"
 
-CVSID("$Id: core_fileio.c,v 1.42 2006/12/23 22:13:25 jason Exp $")
+CVSID("$Id: core_fileio.c,v 1.43 2008/02/18 23:25:13 jason Exp $")
 
 int read_n_bytes(FILE *in,unsigned char *buf,int num,progress_info *proginfo)
 /* reads the specified number of bytes from the file descriptor 'in' into buf */

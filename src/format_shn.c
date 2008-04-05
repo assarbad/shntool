@@ -1,5 +1,5 @@
 /*  format_shn.c - shorten format module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "format.h"
 
-CVSID("$Id: format_shn.c,v 1.63 2006/12/24 21:42:23 jason Exp $")
+CVSID("$Id: format_shn.c,v 1.64 2008/02/18 23:25:14 jason Exp $")
 
 #define SHORTEN "shorten"
 

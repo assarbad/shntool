@@ -1,9 +1,10 @@
 Source: shntool
 Section: utils
 Priority: extra
-Maintainer: Joshua Kwan <joshk@triplehelix.org>
+Maintainer: César Gómez Martín <cesar.gomez@gmail.com>
 Build-Depends: debhelper (>= 4.0.0)
 Standards-Version: 3.7.3
+Homepage: http://etree.org/shnutils/shntool/
 
 Package: shntool
 Architecture: any

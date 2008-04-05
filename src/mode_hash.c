@@ -1,5 +1,5 @@
 /*  mode_hash.c - hash mode module
- *  Portions copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Portions copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *  This mode module is based on the GNU MD5/SHA1 implementation.  See the
  *  original author/copyright info below.
  *
@@ -25,7 +25,7 @@
 #include <string.h>
 #include "mode.h"
 
-CVSID("$Id: mode_hash.c,v 1.86 2007/10/22 07:26:24 jason Exp $")
+CVSID("$Id: mode_hash.c,v 1.87 2008/02/18 23:25:14 jason Exp $")
 
 static bool hash_main(int,char **);
 static void hash_help(void);

@@ -1,5 +1,5 @@
 /*  format_la.c - Lossless Audio format module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "format.h"
 
-CVSID("$Id: format_la.c,v 1.27 2006/12/23 22:13:25 jason Exp $")
+CVSID("$Id: format_la.c,v 1.28 2008/02/18 23:25:13 jason Exp $")
 
 #define LA "la"
 

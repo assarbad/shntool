@@ -1,5 +1,5 @@
 /*  core_wave.c - functions for parsing WAVE headers
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -22,7 +22,7 @@
 #include <errno.h>
 #include "shntool.h"
 
-CVSID("$Id: core_wave.c,v 1.110 2007/01/01 06:22:13 jason Exp $")
+CVSID("$Id: core_wave.c,v 1.111 2008/02/18 23:25:13 jason Exp $")
 
 bool is_valid_file(wave_info *info)
 /* determines whether the given filename (info->filename) is a regular file, and is readable */

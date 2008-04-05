@@ -1,5 +1,5 @@
 /*  module.h - definitions common to mode and format modules
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: module.h,v 1.13 2007/01/04 03:24:50 jason Exp $
+ * $Id: module.h,v 1.14 2008/02/18 23:25:13 jason Exp $
  */
 
 #ifndef __MODULE_H__
