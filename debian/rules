@@ -24,6 +24,7 @@ endif
 build: build-stamp
 build-stamp:
 	dh_testdir
+	dh_autoreconf
 	./configure $(crossflags) --prefix=/usr --mandir=/usr/share/man
 	$(MAKE)
 	touch $@
@@ -33,6 +34,7 @@ clean:
 	dh_testroot
 	rm -f build-stamp
 	[ ! -f Makefile ] || $(MAKE) distclean
+	dh_autoreconf_clean
 	dh_clean 
 
 install: build
