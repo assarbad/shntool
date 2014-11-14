@@ -18,7 +18,7 @@ Description: multi-purpose tool for manipulating and analyzing WAV files
  .
  shntool has native support for .wav files. If you want it to work with
  other formats, you must have the appropriate helper program installed.
- Some of these helper programs - notably for Monkey's Audio, wavpack, LPAC,
+ Some of these helper programs - notably for Monkey's Audio, LPAC,
  OptimFROG - are not (yet) available in Debian.
  .
  With the helper programs mentioned above, shntool is able to convert files
