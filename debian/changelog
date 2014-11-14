@@ -1,3 +1,19 @@
+shntool (3.0.10-1) unstable; urgency=low
+
+  * New upstream release [March 2009] (Closes: #507528).
+  * Don't mention wavpack in long description (Closes: #719344).
+  * New patch to disable CD-quality check (Closes: #769585).
+  * New patches to fix large files processing (Closes: #684600).
+  * Suggests: wavpack.
+  * Added missing man pages links.
+  * DH/compat to version 9; convert to source format "3.0 (quilt)";
+  * "debian/copyright" to copyright-format 1.0.
+  * Standards-Version: 3.9.6
+  * Added VCS links to new repository at collab-maint.
+  * Taken over the package, with permission from César Gómez Martín.
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Sat, 15 Nov 2014 07:46:52 +1100
+
 shntool (3.0.7-1.1) unstable; urgency=low
 
   * Non-maintainer upload.
