@@ -1,66 +1,10 @@
 #!/usr/bin/make -f
-# debian/rules for shntool
-# (C) 2003 Joshua Kwan <joshk@triplehelix.org>
 
-# These are used for cross-compiling and for saving the configure script
-# from having to guess our platform (since we know it already)
-DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
 
-CFLAGS = -Wall -W -Wno-sign-compare -g
+export DEB_BUILD_MAINT_OPTIONS=hardening=+all
+export DEB_CFLAGS_MAINT_APPEND= -Wall -W -Wno-sign-compare -g
 
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-	CFLAGS += -O0
-else
-	CFLAGS += -O2
-endif		
-
-export CFLAGS
-
-ifneq ($(DEB_HOST_GNU_TYPE),$(DEB_BUILD_GNU_TYPE))
-crossflags := --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE)
-endif
-
-build: build-stamp
-build-stamp:
-	dh_testdir
-	dh_autoreconf
-	./configure $(crossflags) --prefix=/usr --mandir=/usr/share/man
-	$(MAKE)
-	touch $@
-
-clean:
-	dh_testdir
-	dh_testroot
-	rm -f build-stamp
-	[ ! -f Makefile ] || $(MAKE) distclean
-	dh_autoreconf_clean
-	dh_clean 
-
-install: build
-	dh_testdir
-	dh_testroot
-	dh_clean -k 
-	dh_installdirs
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/shntool
-	dh_installchangelogs
-	dh_installdocs README 
-
-binary-indep: 
-# Ye olde no-op.
-
-binary-arch: build install
-	dh_testdir
-	dh_testroot
-	dh_compress
-	dh_link
-	dh_strip
-	dh_fixperms
-	dh_installdeb
-	dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
-
-binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install 
+%:
+	dh $@ --with autoreconf
