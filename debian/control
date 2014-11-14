@@ -9,7 +9,7 @@ Homepage: http://etree.org/shnutils/shntool/
 Package: shntool
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Suggests: cuetools, sox, flac
+Suggests: cuetools, sox, flac, wavpack
 Description: multi-purpose tool for manipulating and analyzing WAV files
  shntool is a multi-purpose WAVE data processing and reporting utility.
  File formats are abstracted from its core, so it can process any file
