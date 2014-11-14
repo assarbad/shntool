@@ -1,4 +1,4 @@
-.TH SHNTOOL 1 "February 2007" "shntool 3.0.3" "local"
+.TH SHNTOOL 1 "December 2007" "shntool 3.0.6" "local"
 .SH "NAME"
 shntool \- a multi-purpose WAVE data processing and reporting utility
 
@@ -565,6 +565,25 @@ time interval.
 .I len
 must be given in bytes, m:ss, m:ss.ff or m:ss.nnn format.
 .TP
+.BI "-m " "str"
+Specifies a character manipulation string for filenames generated from CUE sheets.
+These characters, taken one-by-one, represent from/to character translation.
+They must always be in pairs.  Some examples:
+.br
+
+.RS
+.TP
+.I ":-"
+Translate all instances of ':' to '-'
+.TP
+.I ":-/-"
+Translate both ':' and '/' to '-'
+.TP
+.I ":-/_*x"
+Translate ':' to '-', '/' to '_', and '*' to 'x'
+.RE
+
+.TP
 .BI "-n " "fmt"
 Specifies the file count output format.  The default is %02d, which gives two-digit zero-padded numbers (01, 02, 03, ...).
 .TP
@@ -660,6 +679,12 @@ Specifies that the NULL pad byte at end of odd-sized data chunks should be suppr
 This option only applies when WAVE data is also written, otherwise it is ignored.
 
 .SS cmp mode options
+.TP
+.BI "-c " "secs"
+Sets the number of seconds of audio to use for the byte-shift comparison buffer.
+This option only makes sense with the
+.B -s
+option.  The default is 3 seconds.
 .TP
 .BI "-f " "fuzz"
 Sets the "fuzz factor" for determining whether byte-shifted data is identical.
@@ -882,4 +907,4 @@ This is free software.  You may redistribute copies of it under the terms of the
 <http://www.gnu.org/licenses/gpl.html>.  There is NO WARRANTY, to the extent permitted by law.
 
 .SH "REVISION"
-$Id: shntool.1,v 1.119 2007/06/01 04:37:34 jason Exp $
+$Id: shntool.1,v 1.124 2007/12/16 16:11:07 jason Exp $

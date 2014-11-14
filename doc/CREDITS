@@ -109,6 +109,12 @@ Thomas Strosslin, for reporting a major shortcoming in shntool's exit code
 reporting (especially affecting conv mode), and for providing a patch to
 address this issue.
 
+Tom, for suggesting that hash mode use progress indicators, like other modes.
+
+Paolo Saggese, for suggesting that shntool allow user-specified byte-shift
+comparison buffer sizes in cmp mode, for those times when DAE is off by more
+than the default of 3 seconds.
+
 -------
 
 Thanks also goes to the developers of the following software, from which I have
@@ -132,4 +138,4 @@ v2strip - shntool's ID3v2 detection was based on the v2strip implementation
 Document revision:
 ==================
 
-$Id: CREDITS,v 1.24 2007/06/01 03:08:13 jason Exp $
+$Id: CREDITS,v 1.26 2007/10/22 07:16:01 jason Exp $

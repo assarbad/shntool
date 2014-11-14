@@ -53,19 +53,19 @@
 #define PACKAGE_NAME "shntool"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "shntool 3.0.3"
+#define PACKAGE_STRING "shntool 3.0.6"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "shntool"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.0.3"
+#define PACKAGE_VERSION "3.0.6"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "3.0.3"
+#define VERSION "3.0.6"
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */

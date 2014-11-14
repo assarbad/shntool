@@ -21,7 +21,7 @@
 #include <ctype.h>
 #include "format.h"
 
-CVSID("$Id: format_wv.c,v 1.65 2007/01/23 14:09:11 jason Exp $")
+CVSID("$Id: format_wv.c,v 1.68 2007/09/05 05:08:39 jason Exp $")
 
 #define WAVPACK  "wavpack"
 #define WVUNPACK "wvunpack"
@@ -38,7 +38,6 @@ static char default_encoder_args[] = "-q -y - -o " FILENAME_PLACEHOLDER;
 #endif
 
 /* definitions for version 3 and older */
-#define RAW_FLAG             4      /* raw mode (no .wav header) */
 #define NEW_HIGH_FLAG        0x400  /* new high quality mode (lossless only) */
 #define WavpackHeader3Format "4LSSSSLLL4L"
 
@@ -227,7 +226,7 @@ static bool is_our_file(char *filename)
 
     little_endian_to_native(wph4,WavpackHeader4Format);
 
-    if (tagcmp((unsigned char *)wph4->ckID,(unsigned char *)WAVPACK_MAGIC) || wph4->version < 4 || wph4->version > 0x40f || (wph4->flags & RAW_FLAG)) {
+    if (tagcmp((unsigned char *)wph4->ckID,(unsigned char *)WAVPACK_MAGIC) || wph4->version < 4 || wph4->version > 0x40f) {
       return FALSE;
     }
 
@@ -271,7 +270,7 @@ static bool is_our_file(char *filename)
 
   little_endian_to_native(wph3,WavpackHeader3Format);
 
-  if (tagcmp((unsigned char *)wph3->ckID,(unsigned char *)WAVPACK_MAGIC) || wph3->version < 1 || wph3->version > 3 || (wph3->flags & RAW_FLAG)) {
+  if (tagcmp((unsigned char *)wph3->ckID,(unsigned char *)WAVPACK_MAGIC) || wph3->version < 1 || wph3->version > 3) {
     return FALSE;
   }
 

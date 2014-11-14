@@ -19,7 +19,7 @@
 #include <string.h>
 #include "mode.h"
 
-CVSID("$Id: mode_join.c,v 1.104 2007/06/01 03:58:29 jason Exp $")
+CVSID("$Id: mode_join.c,v 1.107 2007/10/22 06:50:35 jason Exp $")
 
 static bool join_main(int,char **);
 static void join_help(void);
@@ -120,10 +120,6 @@ static bool do_join()
     st_error("could not allocate memory for joined file information");
   }
 
-  if (NULL == (output = open_output_stream(outfilename,&output_proc))) {
-    st_error("could not open output file");
-  }
-
   joined_info->chunk_size = total + CANONICAL_HEADER_SIZE - 8;
   joined_info->channels = files[0]->channels;
   joined_info->samples_per_sec = files[0]->samples_per_sec;
@@ -133,12 +129,14 @@ static bool do_join()
   joined_info->bits_per_sample = files[0]->bits_per_sample;
   joined_info->data_size = total;
   joined_info->wave_format = files[0]->wave_format;
+  joined_info->problems = (files[0]->problems & PROBLEM_NOT_CD_QUALITY);
 
   if (PROB_ODD_SIZED_DATA(joined_info))
     joined_info->chunk_size++;
 
   joined_info->total_size = joined_info->chunk_size + 8;
   joined_info->length = joined_info->data_size / joined_info->rate;
+  joined_info->exact_length = (double)joined_info->data_size / (double)joined_info->rate;
 
   length_to_str(joined_info);
 
@@ -152,6 +150,10 @@ static bool do_join()
   proginfo.bytes_total = files[0]->total_size;
 
   prog_update(&proginfo);
+
+  if (NULL == (output = open_output_stream(outfilename,&output_proc))) {
+    st_error("could not open output file");
+  }
 
   make_canonical_header(header,joined_info);
 

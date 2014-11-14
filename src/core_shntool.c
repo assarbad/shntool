@@ -20,7 +20,7 @@
 #include <signal.h>
 #include "shntool.h"
 
-CVSID("$Id: core_shntool.c,v 1.81 2007/06/01 01:28:20 jason Exp $")
+CVSID("$Id: core_shntool.c,v 1.82 2007/10/22 06:36:27 jason Exp $")
 
 private_opts st_priv;
 
@@ -293,6 +293,7 @@ static void globals_init(char *program)
   st_priv.show_hmmss = FALSE;
   st_priv.suppress_warnings = FALSE;
   st_priv.suppress_stderr = FALSE;
+  st_priv.screen_dirty = FALSE;
 
   p = scan_env(SHNTOOL_DEBUG_ENV);
   n = p ? atoi(p) : 0;

@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: core.h,v 1.89 2006/12/29 06:42:22 jason Exp $
+ * $Id: core.h,v 1.90 2007/10/22 06:36:27 jason Exp $
  */
 
 #ifndef __CORE_H__
@@ -112,6 +112,7 @@ typedef struct _private_opts {
   bool  show_hmmss;
   bool  suppress_warnings;
   bool  suppress_stderr;
+  bool  screen_dirty;
   mode_module *mode;
 } private_opts;
 

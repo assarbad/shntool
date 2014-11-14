@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include "shntool.h"
 
-CVSID("$Id: core_mode.c,v 1.76 2007/01/01 06:21:53 jason Exp $")
+CVSID("$Id: core_mode.c,v 1.77 2007/10/22 06:36:27 jason Exp $")
 
 global_opts st_ops;
 
@@ -1470,6 +1470,14 @@ static void prog_init(progress_info *proginfo)
     proginfo->progress_shown = FALSE;
     prog_print_data(proginfo);
     proginfo->initialized = TRUE;
+    st_priv.screen_dirty = FALSE;
+  }
+
+  if (st_priv.screen_dirty) {
+    proginfo->last_percent = -1;
+    proginfo->progress_shown = FALSE;
+    prog_print_data(proginfo);
+    st_priv.screen_dirty = FALSE;
   }
 }
 

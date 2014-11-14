@@ -18,11 +18,13 @@
 
 #include "format.h"
 
-CVSID("$Id: format_tak.c,v 1.3 2007/01/05 17:49:50 jason Exp $")
+CVSID("$Id: format_tak.c,v 1.7 2007/12/16 16:19:11 jason Exp $")
 
 #define TAK "takc"
 
 #define TAK_MAGIC "tBaK"
+
+static char default_encoder_args[] = "-e -ihs - " FILENAME_PLACEHOLDER;
 
 static FILE *open_for_input(char *,proc_info *);
 
@@ -31,7 +33,7 @@ format_module format_tak = {
   "(T)om's lossless (A)udio (K)ompressor",
   CVSIDSTR,
   TRUE,
-  FALSE,
+  TRUE,
   FALSE,
   TRUE,
   TRUE,
@@ -42,8 +44,8 @@ format_module format_tak = {
   "tak",
   NULL,
   NULL,
-  NULL,
-  NULL,
+  TAK,
+  default_encoder_args,
   NULL,
   open_for_input,
   NULL,

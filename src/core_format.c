@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include "shntool.h"
 
-CVSID("$Id: core_format.c,v 1.40 2007/01/01 06:20:50 jason Exp $")
+CVSID("$Id: core_format.c,v 1.41 2007/10/22 06:36:27 jason Exp $")
 
 /* private helper functions */
 
@@ -255,6 +255,8 @@ static bool clobber_ask(char *filename)
   /* some modes read files/split points/etc. from stdin, so we can't ask.  force user to use -O option */
   if (!isatty(fileno(stdin)))
     st_error("standard input is not a terminal -- cannot prompt for overwrite action.  use \"-O always\" or \"-O never\".");
+
+  st_priv.screen_dirty = TRUE;
 
   while (1) {
     st_info("File already exists: [%s]\n",filename);
