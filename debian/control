@@ -1,7 +1,7 @@
 Source: shntool
 Section: utils
 Priority: extra
-Maintainer: César Gómez Martín <cesar.gomez@gmail.com>
+Maintainer: Dmitry Smirnov <onlyjob@debian.org>
 Build-Depends: debhelper (>= 4.0.0), dh-autoreconf
 Standards-Version: 3.7.3
 Homepage: http://etree.org/shnutils/shntool/
