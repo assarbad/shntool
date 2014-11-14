@@ -10,3 +10,6 @@ usr/share/man/man1/shntool.1.gz usr/share/man/man1/shnpad.1.gz
 usr/share/man/man1/shntool.1.gz usr/share/man/man1/shnmd5.1.gz
 usr/share/man/man1/shntool.1.gz usr/share/man/man1/shnfix.1.gz
 usr/share/man/man1/shntool.1.gz usr/share/man/man1/shnlen.1.gz
+usr/share/man/man1/shntool.1.gz usr/share/man/man1/shngen.1.gz
+usr/share/man/man1/shntool.1.gz usr/share/man/man1/shnhash.1.gz
+usr/share/man/man1/shntool.1.gz usr/share/man/man1/shntrim.1.gz
