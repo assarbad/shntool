@@ -1,5 +1,5 @@
 /*  format_mkw.c - mkw format module
- *  Copyright (C) 2000-2006  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "format.h"
 
-CVSID("$Id: format_mkw.c,v 1.8 2007/03/30 05:18:37 jason Exp $")
+CVSID("$Id: format_mkw.c,v 1.9 2008/02/18 23:27:32 jason Exp $")
 
 #define MKW_MAGIC "mkw"
 

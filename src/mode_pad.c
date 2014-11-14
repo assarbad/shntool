@@ -1,5 +1,5 @@
 /*  mode_pad.c - pad mode module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_pad.c,v 1.75 2007/06/01 03:53:40 jason Exp $")
+CVSID("$Id: mode_pad.c,v 1.76 2008/02/18 23:25:14 jason Exp $")
 
 static bool pad_main(int,char **);
 static void pad_help(void);

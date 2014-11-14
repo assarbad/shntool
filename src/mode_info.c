@@ -1,5 +1,5 @@
 /*  mode_info.c - info mode module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_info.c,v 1.72 2007/06/01 03:53:40 jason Exp $")
+CVSID("$Id: mode_info.c,v 1.73 2008/02/18 23:25:14 jason Exp $")
 
 static bool info_main(int,char **);
 static void info_help(void);

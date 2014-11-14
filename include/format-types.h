@@ -1,5 +1,5 @@
 /*  format-types.h - format module type definitions
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: format-types.h,v 1.15 2006/12/23 22:13:24 jason Exp $
+ * $Id: format-types.h,v 1.16 2008/02/18 23:25:13 jason Exp $
  */
 
 #ifndef __FORMAT_TYPES_H__

@@ -1,5 +1,5 @@
 /*  core_module.c - public functions for both mode and format modules
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 #include <string.h>
 #include "shntool.h"
 
-CVSID("$Id: core_module.c,v 1.146 2007/01/01 06:21:20 jason Exp $")
+CVSID("$Id: core_module.c,v 1.147 2008/02/18 23:25:13 jason Exp $")
 
 /* public functions */
 

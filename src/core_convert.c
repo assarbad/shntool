@@ -1,5 +1,5 @@
 /*  core_convert.c - little-endian conversion functions
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "shntool.h"
 
-CVSID("$Id: core_convert.c,v 1.19 2006/12/23 22:13:25 jason Exp $")
+CVSID("$Id: core_convert.c,v 1.20 2008/02/18 23:25:13 jason Exp $")
 
 unsigned long uchar_to_ulong_le(unsigned char * buf)
 /* converts 4 bytes stored in little-endian format to an unsigned long */

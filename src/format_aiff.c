@@ -1,5 +1,5 @@
 /*  format_aiff.c - aiff format module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "format.h"
 
-CVSID("$Id: format_aiff.c,v 1.78 2007/02/14 16:33:31 jason Exp $")
+CVSID("$Id: format_aiff.c,v 1.79 2008/02/18 23:25:13 jason Exp $")
 
 #define SOX "sox"
 

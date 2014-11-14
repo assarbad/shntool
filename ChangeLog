@@ -1,3 +1,8 @@
+version 3.0.7 (2008-03-02)
+  + support for TAK decoding (requires TAK 1.0.4+)
+  + updated MPEG-4 ALS to version RM20, and added output support
+  + removed detection of unsupported formats RKAU and WMA
+
 version 3.0.6 (2007-12-16)
   + support for TAK encoding (requires TAK 1.0.3+)
 

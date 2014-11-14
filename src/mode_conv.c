@@ -1,5 +1,5 @@
 /*  mode_conv.c - conv mode module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_conv.c,v 1.103 2007/06/01 04:24:08 jason Exp $")
+CVSID("$Id: mode_conv.c,v 1.104 2008/02/18 23:25:14 jason Exp $")
 
 static bool conv_main(int,char **);
 static void conv_help(void);

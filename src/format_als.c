@@ -1,5 +1,5 @@
 /*  format_als.c - als format module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,20 +18,21 @@
 
 #include "format.h"
 
-CVSID("$Id: format_als.c,v 1.2 2007/01/03 16:05:45 jason Exp $")
+CVSID("$Id: format_als.c,v 1.4 2008/02/20 00:27:03 jason Exp $")
 
 #define ALS "mp4als"
 
 #define ALS_MAGIC "ALS"
 
 static char default_decoder_args[] = "-x " FILENAME_PLACEHOLDER " -";
+static char default_encoder_args[] = "- " FILENAME_PLACEHOLDER;
 
 format_module format_als = {
   "als",
   "MPEG-4 Audio Lossless Coding",
   CVSIDSTR,
   TRUE,
-  FALSE,
+  TRUE,
   FALSE,
   TRUE,
   TRUE,
@@ -42,8 +43,8 @@ format_module format_als = {
   "als",
   ALS,
   default_decoder_args,
-  NULL,
-  NULL,
+  ALS,
+  default_encoder_args,
   NULL,
   NULL,
   NULL,

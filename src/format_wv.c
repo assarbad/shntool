@@ -1,5 +1,5 @@
 /*  format_wv.c - wavpack format module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,7 +21,7 @@
 #include <ctype.h>
 #include "format.h"
 
-CVSID("$Id: format_wv.c,v 1.68 2007/09/05 05:08:39 jason Exp $")
+CVSID("$Id: format_wv.c,v 1.69 2008/02/18 23:25:14 jason Exp $")
 
 #define WAVPACK  "wavpack"
 #define WVUNPACK "wvunpack"

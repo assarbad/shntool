@@ -1,5 +1,5 @@
 /*  mode_cmp.c - cmp mode module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_cmp.c,v 1.84 2007/10/22 06:04:11 jason Exp $")
+CVSID("$Id: mode_cmp.c,v 1.85 2008/02/18 23:25:14 jason Exp $")
 
 static bool cmp_main(int,char **);
 static void cmp_help(void);

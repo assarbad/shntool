@@ -1,5 +1,5 @@
 /*  mode_len.c - len mode module
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 #include <string.h>
 #include "mode.h"
 
-CVSID("$Id: mode_len.c,v 1.84 2007/06/01 03:53:40 jason Exp $")
+CVSID("$Id: mode_len.c,v 1.85 2008/02/18 23:25:14 jason Exp $")
 
 static bool len_main(int,char **);
 static void len_help(void);

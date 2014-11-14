@@ -1,5 +1,5 @@
 /*  core.h - private type definitions, defines and macros
- *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: core.h,v 1.90 2007/10/22 06:36:27 jason Exp $
+ * $Id: core.h,v 1.91 2008/02/18 23:25:13 jason Exp $
  */
 
 #ifndef __CORE_H__
@@ -25,7 +25,7 @@
 
 /* program info */
 #define RELEASE   VERSION
-#define COPYRIGHT "Copyright (C) 2000-2007"
+#define COPYRIGHT "Copyright (C) 2000-2008"
 #define AUTHOR    "Jason Jordan <shnutils@freeshell.org>"
 #define URL1      "http://www.etree.org/shnutils/"
 #define URL2      "http://shnutils.freeshell.org/"
