@@ -3,7 +3,7 @@ Section: utils
 Priority: extra
 Maintainer: Dmitry Smirnov <onlyjob@debian.org>
 Build-Depends: debhelper (>= 4.0.0), dh-autoreconf
-Standards-Version: 3.7.3
+Standards-Version: 3.9.6
 Homepage: http://etree.org/shnutils/shntool/
 
 Package: shntool
