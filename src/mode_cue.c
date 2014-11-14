@@ -1,10 +1,10 @@
 /*  mode_cue.c - cue sheet mode module
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,20 +13,26 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: mode_cue.c,v 1.6 2004/04/02 00:51:56 jason Exp $
- */
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include "shntool.h"
-#include "fileio.h"
-#include "wave.h"
-#include "misc.h"
+#include "mode.h"
+
+CVSID("$Id: mode_cue.c,v 1.41 2007/06/01 02:30:30 jason Exp $")
+
+static bool cue_main(int,char **);
+static void cue_help(void);
+
+mode_module mode_cue = {
+  "cue",
+  "shncue",
+  "Generates a CUE sheet or split points from a set of files",
+  CVSIDSTR,
+  FALSE,
+  cue_main,
+  cue_help
+};
 
 enum {
   TYPE_UNKNOWN,
@@ -41,82 +47,44 @@ static int numfiles = 0;
 
 static wave_info *totals = NULL;
 
-static void cue_main(int,char **,int);
-
-mode_module mode_cue = {
-  "cue",
-  "shncue",
-  "generates a CUE sheet or split points from a set of files",
-  cue_main
-};
-
-static void show_usage()
+static void cue_help()
 {
-  printf("Usage: %s [OPTIONS] [files]\n",fullprogname);
-  printf("\n");
-  printf("Options:\n");
-  printf("\n");
-  printf("  -c  generate CUE sheet (default)\n");
-  printf("\n");
-  printf("  -s  generate split points in explcit byte-offset format\n");
-  printf("\n");
-  printf("  -D  print debugging information\n");
-  printf("\n");
-  printf("  --  indicates that everything following it is a file name\n");
-  printf("\n");
-  printf("  -v  shows version information\n");
-  printf("  -h  shows this help screen\n");
-  printf("\n");
-  printf("  If no file names are given, then file names are read from standard input.\n");
-  printf("\n");
-  printf("  ------------\n");
-  printf("  Sample uses:\n");
-  printf("  ------------\n");
-  printf("\n");
-  printf("  %% %s *.shn\n",fullprogname);
-  printf("\n");
-
-  exit(0);
+  st_info("Usage: %s [OPTIONS] [files]\n",st_progname());
+  st_info("\n");
+  st_info("Mode-specific options:\n");
+  st_info("\n");
+  st_info("  -c      generate CUE sheet (default)\n");
+  st_info("  -h      show this help screen\n");
+  st_info("  -s      generate split points in explicit byte-offset format\n");
+  st_info("\n");
+  st_info("If no filenames are given, then filenames are read from the terminal.\n");
+  st_info("\n");
 }
 
-static void parse(int argc,char **argv,int begin,int *first_arg)
+static void parse(int argc,char **argv,int *first_arg)
 {
-  int start;
+  int c;
 
-  start = begin;
+  output_type = TYPE_CUESHEET;
 
-  while (start < argc && argv[start][0] == '-') {
-    if (argc > start && 0 == strcmp(argv[start],"--")) {
-      start++;
-      break;
+  while ((c = st_getopt(argc,argv,"cs")) != -1) {
+    switch (c) {
+      case 'c':
+        output_type = TYPE_CUESHEET;
+        break;
+      case 's':
+        output_type = TYPE_SPLITPOINTS;
+        break;
     }
-    else if (argc > start && 0 == strcmp(argv[start],"-c"))
-      output_type = TYPE_CUESHEET;
-    else if (argc > start && 0 == strcmp(argv[start],"-s"))
-      output_type = TYPE_SPLITPOINTS;
-    else if (argc > start && 0 == strcmp(argv[start],"-v"))
-      internal_version();
-    else if (argc > start && 0 == strcmp(argv[start],"-h"))
-      show_usage();
-    else if (argc > start && 0 == strcmp(argv[start],"-D"))
-      shntool_debug = 1;
-    else
-      st_help("unknown argument: %s",argv[start]);
-    start++;
   }
 
-  if (TYPE_UNKNOWN == output_type) {
-    output_type = TYPE_CUESHEET;
-    st_warning("no output type specified - assuming CUE sheet");
-  }
-
-  *first_arg = start;
+  *first_arg = optind;
 }
 
 static void verify_wave_info(wave_info *info)
 {
-  if (output_type == TYPE_CUESHEET && PROB_NOT_CD(info)) {
-    st_error("file '%s' is not CD-quality",info->filename);
+  if ((TYPE_CUESHEET == output_type) && PROB_NOT_CD(info)) {
+    st_error("file is not CD-quality: [%s]",info->filename);
   }
 
   if (0 == totals->wave_format && 0 == totals->channels &&
@@ -158,18 +126,18 @@ static void output_init()
     st_error("could not allocate memory for totals");
 
   if (output_type == TYPE_CUESHEET) {
-    printf("FILE \"joined.wav\" WAVE\n");
+    st_output("FILE \"joined.wav\" WAVE\n");
   }
 }
 
-static void output_track(char *filename)
+static bool output_track(char *filename)
 {
   wave_info *info;
   wlong curr_data_size = 0;
   char *p;
 
   if (NULL == (info = new_wave_info(filename)))
-    return;
+    return FALSE;
 
   verify_wave_info(info);
 
@@ -183,58 +151,65 @@ static void output_track(char *filename)
     length_to_str(info);
     if ((p = strstr(info->m_ss,".")))
       *p = ':';
-    printf("  TRACK %02d AUDIO\n",numfiles);
-    printf("    INDEX 01 %s\n",info->m_ss);
+    st_output("  TRACK %02d AUDIO\n",numfiles);
+    st_output("    INDEX 01 %s\n",info->m_ss);
   }
   else if (output_type == TYPE_SPLITPOINTS) {
     if (total_data_size > 0.0)
-      printf("%0.0f\n",total_data_size);
+      st_output("%0.0f\n",total_data_size);
   }
 
   total_data_size += (double)curr_data_size;
+
+  return TRUE;
 }
 
 static void output_end()
 {
   if (TYPE_CUESHEET == output_type && numfiles < 1) {
-    st_error("need one or more file names in order to generate CUE sheet");
+    st_error("need one or more filenames in order to generate CUE sheet");
   }
 
   if (TYPE_SPLITPOINTS == output_type && numfiles < 2) {
-    st_error("need two or more file names in order to generate split points");
+    st_error("need two or more filenames in order to generate split points");
   }
 }
 
-static void process(int argc,char **argv,int start)
+static bool process(int argc,char **argv,int start)
 {
   int i;
   char filename[FILENAME_SIZE];
+  bool success;
+
+  success = TRUE;
 
   output_init();
 
   if (argc < start + 1) {
-    /* no filenames were given, so we're reading files from standard input. */
+    /* no filenames were given, so we're reading files from the terminal. */
     fgets(filename,FILENAME_SIZE-1,stdin);
-    while (0 == feof(stdin)) {
-      filename[strlen(filename)-1] = '\0';
-      output_track(filename);
+    while (!feof(stdin)) {
+      trim(filename);
+      success = (output_track(filename) && success);
       fgets(filename,FILENAME_SIZE-1,stdin);
     }
   }
   else {
     for (i=start;i<argc;i++) {
-      output_track(argv[i]);
+      success = (output_track(argv[i]) && success);
     }
   }
 
   output_end();
+
+  return success;
 }
 
-static void cue_main(int argc,char **argv,int start)
+static bool cue_main(int argc,char **argv)
 {
   int first_arg;
 
-  parse(argc,argv,start,&first_arg);
+  parse(argc,argv,&first_arg);
 
-  process(argc,argv,first_arg);
+  return process(argc,argv,first_arg);
 }

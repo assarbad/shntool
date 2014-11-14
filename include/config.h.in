@@ -1,19 +1,46 @@
-/* include/config.h.in.  Generated from configure.in by autoheader.  */
+/* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if you have the `atol' function. */
 #undef HAVE_ATOL
 
-/* Define to 1 if you have the `setlinebuf' function. */
-#undef HAVE_SETLINEBUF
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
 
 /* Define to 1 if you have the `strerror' function. */
 #undef HAVE_STRERROR
 
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
 /* Define to 1 if you have the `sysconf' function. */
 #undef HAVE_SYSCONF
 
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
 /* Define to 1 if you have the `vsnprintf' function. */
 #undef HAVE_VSNPRINTF
+
+/* Define to 1 if you have the <windows.h> header file. */
+#undef HAVE_WINDOWS_H
 
 /* Name of package */
 #undef PACKAGE
@@ -33,19 +60,12 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if the C compiler supports function prototypes. */
-#undef PROTOTYPES
-
-/* Define to 1 if the `setvbuf' function takes the buffering type as its
-   second argument and the buffer pointer as the third, as on System V before
-   release 3. */
-#undef SETVBUF_REVERSED
-
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
 /* Version number of package */
 #undef VERSION
 
-/* Define like PROTOTYPES; this can be used by system headers. */
-#undef __PROTOTYPES
+/* Define to 1 if your processor stores words with the most significant byte
+   first (like Motorola and SPARC, unlike Intel and VAX). */
+#undef WORDS_BIGENDIAN

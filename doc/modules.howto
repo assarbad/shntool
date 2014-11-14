@@ -23,32 +23,38 @@ mode module for shntool, you simply need to fill in a mode_module struct with
 the appropriate data/functions for your mode.  This struct is defined as
 follows:
 
-typedef struct {
-  char  *name;                         /* mode name, specified on command line */
-  char  *alias;                        /* alternate name that invokes this mode */
-  char  *description;                  /* one line description of this mode */
-  void (*run_main)(int,char **,int);   /* main() function for this mode */
+typedef struct _mode_module {
+  char  *const name;              /* mode name, specified on command line */
+  char  *const alias;             /* alternate name that invokes this mode */
+  char  *const description;       /* one line description of this mode */
+  char  *const cvsid;             /* CVS revision (used to prevent it from being stripped) */
+  bool  const creates_files;      /* does this mode create output files? */
+  bool (*run_main)(int,char **);  /* main() function for this mode */
+  void (*run_help)(void);         /* help() function for this mode */
 } mode_module;
 
-If you are writing a mode module called 'foo', you could define your struct
+If you are writing a mode module called 'rev', you could define your struct
 thusly:
 
 /* this is essentially main() for your module, which is called after shntool
- * sees that it was invoked with a mode of 'foo', or was invoked as 'do_foo'
+ * sees that it was invoked with a mode of 'rev', or was invoked as 'do_rev'
  * via a symbolic link to shntool.  shntool passes argc and argv to this
- * function, as well as the position of the first command-line argument.
+ * function.
  */
-void foo_main(int,char **,int);
+void rev_main(int,char **);
 
-mode_module mode_foo = {
-  "foo",
-  "do_foo",
-  "does something to the input files",
-  foo_main
+mode_module mode_rev = {
+  "rev",
+  "do_rev",
+  "reverses PCM WAVE data",
+  CVSIDSTR,
+  TRUE,
+  rev_main,
+  rev_help
 };
 
-Note that if your mode is named "foo", and you specify an alias for your mode
-that is not equal to "shnfoo", then you are responsible for installing your
+Note that if your mode is named "rev", and you specify an alias for your mode
+that is not equal to "shnrev", then you are responsible for installing your
 own symbolic or hard link for that alias.
 
 
@@ -61,46 +67,80 @@ formats.  To create a new format module for shntool, you simply need to fill in
 a format_module struct with the appropriate data/functions for your format.
 This struct is defined as follows:
 
-typedef struct {
-  char   *name;                               /* format name, specified on command line in certain modes */
-  char   *description;                        /* one line description of this format */
-  char   *extension;                          /* extension to append to files created by this module */
-  int     is_translated;                      /* is this file format a simple translation (e.g. byte-swap) of WAV? */
-  int     is_compressed;                      /* is this file format a compression format? */
-  char   *encoder;                            /* name of external program to handle encoding of this format - set to NULL if not applicable */
-  char   *decoder;                            /* name of external program to handle decoding of this format - set to NULL if not applicable */
-  int   (*is_our_file)(char *);               /* routine to determine whether the given file belongs to this format plugin */
-  FILE *(*input_func)(char *,int *);          /* routine to open a file of this format for input - set to NULL if not applicable */
-  FILE *(*output_func)(char *,int *);         /* routine to open a file of this format for output - set to NULL if not applicable */
-  void  (*extra_info)(char *);                /* routine to display extra information in info mode - set to NULL if not applicable */
-  void  (*get_arguments)(int,char **,int *);  /* routine to process any extra command-line arguments for output modes - set to NULL if not applicable */
+typedef struct _format_module {
+  /* set at compile time */
+  char   *const name;                        /* format name, specified on command line in certain modes */
+  char   *const description;                 /* one line description of this format */
+  char   *const cvsid;                       /* CVS revision (used to prevent it from being stripped) */
+  bool    const supports_input;              /* does this format support input? */
+  bool    const supports_output;             /* does this format support output? */
+  bool    const is_translated;               /* is this file format a simple translation (e.g. byte-swap) of WAV? */
+  bool    const is_compressed;               /* is this file format a compression format? */
+  bool    const remove_output_file;          /* remove output file before opening it for output?  (prevents some encoders from complaining that the file already exists) */
+  bool    const kill_when_input_done;        /* kill() decoder when finished reading input?  (prevents delays introduced by decoders that don't exit when we close stdout) */
+  char   *const stdin_for_id3v2_kluge;       /* if not NULL, try to skip id3v2 tags on input files by passing data on decoder's stdin using this as the stdin argument */
+  char   *const magic;                       /* if not NULL, shntool will check for this string at position magic_offset in the input file */
+  int     const magic_offset;                /* offset within the file at which the magic string is expected to occur */
+
+  /* can be changed at run time */
+  char   *extension;                         /* extension to append to files created by this module */
+  char   *decoder;                           /* name of external program to handle decoding of this format - set to NULL if not applicable */
+  char   *decoder_args;                      /* decoder arguments */
+  char   *encoder;                           /* name of external program to handle encoding of this format - set to NULL if not applicable */
+  char   *encoder_args;                      /* encoder arguments */
+
+  /* optional functions - set to NULL if not applicable */
+  bool  (*is_our_file)(char *);              /* routine to determine whether the given file belongs to this format plugin */
+  FILE *(*input_func)(char *,proc_info *);   /* routine to open a file of this format for input - if NULL, shntool will launch the decoder */
+  FILE *(*output_func)(char *,proc_info *);  /* routine to open a file of this format for output - if NULL, shntool will launch the encoder */
+  void  (*extra_info)(char *);               /* routine to display extra information in info mode */
+  void  (*create_output_filename)(char *);   /* routine to create a custom output filename */
+  bool  (*input_header_kluge)(unsigned char *,struct _wave_info *);  /* routine to determine correct header info for when decoders are unable to do so themselves */
+
+  /* internal argument lists (do not assign these in format modules) */
+  child_args input_args_template;           /* input argument template (filled out by shntool, based on default_decoder_args) */
+  child_args input_args;                    /* input arguments, filled out (used by shntool when launching decoder) */
+  child_args output_args_template;          /* output argument template (filled out by shntool, based on default_encoder_args) */
+  child_args output_args;                   /* output arguments, filled out (used by shntool when launching encoder) */
 } format_module;
 
-If you are writing a format module called 'doh', you could define your struct
+If you are writing a format module called 'mp3', you could define your struct
 thusly:
 
-FILE *open_input_doh(char *);
-FILE *open_output_doh(char *);
-int is_doh_file(char *);
+#define LAME "lame"
 
-format_module format_doh = {
-  "doh",
-  "Doh file format (output only)",
-  "doh",
+static char default_encoder_args[] = "--quiet - " FILENAME_PLACEHOLDER;
+
+format_module format_mp3 = {
+  "mp3",
+  "MPEG 1.0 Layer 3",
+  CVSIDSTR,
+  FALSE,
+  TRUE,
+  FALSE,
+  FALSE,
+  TRUE,
+  TRUE,
+  NULL,
+  NULL,
   0,
-  1,
+  "mp3",
   NULL,
   NULL,
-  is_doh_file,
+  LAME,
+  default_encoder_args,
   NULL,
-  open_output_doh,
+  NULL,
+  NULL,
+  NULL,
   NULL,
   NULL
 };
 
-In this example, the 'doh' format module does not rely on an external program to
-function, only supports output to that format, and does not have any format-specific
-information to display in info mode.
+
+In this example, the 'mp3' format module relies on external program "lame" to function,
+only supports output to that format, and does not have any format-specific information
+to display in info mode.  is_our_file() would always return FALSE.
 
 
 ---------------------------------
@@ -117,7 +157,7 @@ There are four things to note if you are creating a new mode or format module:
     'format_bar.c'.  The reason for the strict file/module naming scheme is
     because both the configure script and the utils/glue.sh script assume this
     naming convention when putting together Makefile rules as well as the
-    modes[] and formats[] arrays.
+    st_modes[] and st_formats[] arrays.
 
 2.  I recommend that you place all of your code in one file.  It is possible to
     separate your code into multiple files, but you're on your own if you want
@@ -153,20 +193,17 @@ There are four things to note if you are creating a new mode or format module:
 Your modules will have access to several functions and data structures that can
 be helpful.
 
-Global data:
-------------
+1.  mode modules can use any of the functions/types in include/mode.h, or
+    any header included by include/mode.h.  Make sure to #include "mode.h",
+    and any other global headers as needed (e.g. <string.h>).
 
-modes[]   - a NULL-terminated list of pointers to the mode modules compiled
-            into shntool.  No real reason to access this, unless you want to
-            pass off control to another mode module.
+2.  format modules can use any of the functions/types in include/format.h, or
+    any header included by include/format.h.  Make sure to #include "format.h",
+    and any other global headers as needed (e.g. <string.h>).
 
-formats[] - a NULL-terminated list of pointers to the format modules compiled
-            into shntool.  You really only need to access this from mode modules
-            that create output files.
 
-Global functions:
------------------
+==================
+Document revision:
+==================
 
-Look in include/*.h for global functions that your module(s) can use - they
-change too often for me to give an accurate listing of them here.  I'll do my
-best to provide informative comments as to what they actually do.  :)
+$Id: modules.howto,v 1.28 2007/06/01 04:23:26 jason Exp $

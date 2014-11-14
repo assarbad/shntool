@@ -1,5 +1,5 @@
 /*
- * $Id: binary.h,v 1.3 2004/03/28 08:07:23 jason Exp $
+ * $Id: binary.h,v 1.7 2005/08/26 06:40:32 jason Exp $
  */
 
 #include <stdio.h>
@@ -10,6 +10,10 @@
 #include <limits.h>
 #include <assert.h>
 #include <math.h>
+
+#ifdef __CYGWIN__
+#include <io.h>
+#endif
 
 #if   defined _WIN32  ||  defined __TURBOC__  ||  defined __ZTC__  ||  defined _MSC_VER
 # include <io.h>
@@ -63,27 +67,35 @@
 */
 
 #if   defined __EMX__
+# define SETBINARY_FD(__fp)     (_fsetmode ( (__fp), "b" ))
 # define SETBINARY_IN(__fp)     (_fsetmode ( (__fp), "b" ))
 # define SETBINARY_OUT(__fp)    (_fsetmode ( (__fp), "b" ))
 #elif defined __TURBOC__ || defined __BORLANDC__
+# define SETBINARY_FD(__fp)     (setmode   ( (__fp),  O_BINARY ))
 # define SETBINARY_IN(__fp)     (setmode   ( FILENO ((__fp)),  O_BINARY ))
 # define SETBINARY_OUT(__fp)    (setmode   ( FILENO ((__fp)),  O_BINARY ))
 #elif defined __CYGWIN__
+# define SETBINARY_FD(__fp)     (setmode   ( (__fp), _O_BINARY ))
 # define SETBINARY_IN(__fp)     (setmode   ( FILENO ((__fp)), _O_BINARY ))
 # define SETBINARY_OUT(__fp)    (setmode   ( FILENO ((__fp)), _O_BINARY ))
 #elif defined _WIN32
+# define SETBINARY_FD(__fp)     (_setmode  ( (__fp), _O_BINARY ))
 # define SETBINARY_IN(__fp)     (_setmode  ( FILENO ((__fp)), _O_BINARY ))
 # define SETBINARY_OUT(__fp)    (_setmode  ( FILENO ((__fp)), _O_BINARY ))
 #elif defined _MSC_VER
+# define SETBINARY_FD(__fp)     (setmode   ( (__fp),  O_BINARY ))
 # define SETBINARY_IN(__fp)     (setmode   ( FILENO ((__fp)),  O_BINARY ))
 # define SETBINARY_OUT(__fp)    (setmode   ( FILENO ((__fp)),  O_BINARY ))
 #elif defined __unix__
+# define SETBINARY_FD(__fp)     (void)(__fp)
 # define SETBINARY_IN(__fp)     (void)(__fp)
 # define SETBINARY_OUT(__fp)    (void)(__fp)
 #elif 0
+# define SETBINARY_FD(__fp)     (void)(__fp)
 # define SETBINARY_IN(__fp)     (freopen   ( NULL, "rb", (__fp) ))
 # define SETBINARY_OUT(__fp)    (freopen   ( NULL, "wb", (__fp) ))
 #else
+# define SETBINARY_FD(__fp)     (void)(__fp)
 # define SETBINARY_IN(__fp)     (void)(__fp)
 # define SETBINARY_OUT(__fp)    (void)(__fp)
 #endif

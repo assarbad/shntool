@@ -1,10 +1,10 @@
 /*  wave.h - WAVE data definitions
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,18 +13,18 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /*
- * $Id: wave.h,v 1.34 2004/05/05 07:50:54 jason Exp $
+ * $Id: wave.h,v 1.46 2006/12/29 07:27:38 jason Exp $
  */
 
 #ifndef __WAVE_H__
 #define __WAVE_H__
 
 #include <stdio.h>
-#include "format.h"
+#include "format-types.h"
 
 #define WAVE_RIFF                       "RIFF"
 #define WAVE_WAVE                       "WAVE"
@@ -81,7 +81,7 @@
 #define PROBLEM_JUNK_APPENDED           (0x00000080)
 #define PROBLEM_DATA_NOT_ALIGNED        (0x00000100)
 
-/* macros you can use to determine if files have certain problems */
+/* macros to determine if files have certain problems */
 
 #define PROB_NOT_CD(f)                  ((f->problems) & (PROBLEM_NOT_CD_QUALITY))
 #define PROB_BAD_BOUND(f)               ((f->problems) & (PROBLEM_CD_BUT_BAD_BOUND))
@@ -94,11 +94,7 @@
 #define PROB_DATA_NOT_ALIGNED(f)        ((f->problems) & (PROBLEM_DATA_NOT_ALIGNED))
 #define PROB_ODD_SIZED_DATA(f)          (f->data_size & 1)
 
-typedef unsigned long wlong;
-typedef unsigned short wshort;
-typedef unsigned int wint;
-
-typedef struct {
+typedef struct _wave_info {
   char *filename,              /* file name of input file                             */
         m_ss[16];              /* length, in m:ss.nnn or m:ss.ff format               */
 
@@ -129,15 +125,16 @@ typedef struct {
 
   unsigned long problems;      /* bitmap of problems found with the file, see above   */
 
-  format_module *input_format; /* pointer to the input format module that opens this  */
+  struct _format_module
+                *input_format; /* pointer to the input format module that opens this  */
 
   FILE *input, *output;        /* input/output file pointers (= NULL, use as needed)  */
 
-  wint input_pid;              /* pid of child input process                          */
-  wint output_pid;             /* pid of child output process                         */
+  proc_info input_proc;        /* pid (and handle on WIN32) of child input process    */
+  proc_info output_proc;       /* pid (and handle on WIN32) of child output process   */
 
-  wint file_has_id3v2_tag;     /* does this file contain an ID3v2 tag?                */
-  wint stream_has_id3v2_tag;   /* does the decoded input stream contain an ID3v2 tag? */
+  bool file_has_id3v2_tag;     /* does this file contain an ID3v2 tag?                */
+  bool stream_has_id3v2_tag;   /* does the decoded input stream contain an ID3v2 tag? */
   wlong id3v2_tag_size;        /* size of the ID3v2 tag this file contains, if any    */
 } wave_info;
 
@@ -159,10 +156,10 @@ void put_chunk_size(unsigned char *,unsigned long);
 void put_data_size(unsigned char *,int,unsigned long);
 
 /* kluges the WAVE header to get correct values when helper programs don't provide them */
-int do_header_kluges(unsigned char *,wave_info *);
+bool do_header_kluges(unsigned char *,wave_info *);
 
 /* verifies that data coming in on the associated file descriptor describes a valid WAVE header */
-int verify_wav_header_internal(wave_info *,int);
-#define verify_wav_header(a) verify_wav_header_internal(a,0)
+bool verify_wav_header_internal(wave_info *,bool);
+#define verify_wav_header(a) verify_wav_header_internal(a,FALSE)
 
 #endif

@@ -1,10 +1,10 @@
 /*  mode_len.c - len mode module
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,19 +13,26 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: mode_len.c,v 1.35 2004/05/05 07:15:56 jason Exp $
- */
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include "shntool.h"
-#include "wave.h"
-#include "misc.h"
+#include "mode.h"
+
+CVSID("$Id: mode_len.c,v 1.84 2007/06/01 03:53:40 jason Exp $")
+
+static bool len_main(int,char **);
+static void len_help(void);
+
+mode_module mode_len = {
+  "len",
+  "shnlen",
+  "Displays length, size and properties of PCM WAVE data",
+  CVSIDSTR,
+  FALSE,
+  len_main,
+  len_help
+};
 
 #define LEN_OK             "-"
 #define LEN_NOT_APPLICABLE "x"
@@ -35,123 +42,104 @@ typedef enum {
   LEVEL_BYTES,
   LEVEL_KBYTES,
   LEVEL_MBYTES,
-  LEVEL_GBYTES
+  LEVEL_GBYTES,
+  LEVEL_TBYTES
 } len_levels;
 
-static int desired_level = LEVEL_UNKNOWN;
-static int processed = 0;
-static int all_cd_quality = 1;
+static int totals_unit_level = LEVEL_UNKNOWN;
+static int file_unit_level = LEVEL_UNKNOWN;
+static int num_processed = 0;
+static bool all_cd_quality = TRUE;
+static bool suppress_column_names = FALSE;
+static bool suppress_totals_line = FALSE;
 
 static double total_size = 0.0;
 static double total_data_size = 0.0;
 static double total_disk_size = 0.0;
 static double total_length = 0.0;
-static double unit_divs[4] = {1.0, 1024.0, 1048576.0, 1073741824.0};
+static double unit_divs[5] = {1.0, 1024.0, 1048576.0, 1073741824.0, 1099511627776.0};
 
-static char *units[4] = {"B ","KB","MB","GB"};
+static char *units[5] = {"B ", "KB", "MB", "GB", "TB"};
 
-static void len_main(int,char **,int);
-
-mode_module mode_len = {
-  "len",
-  "shnlen",
-  "displays length, size and properties of PCM WAVE data",
-  len_main
-};
-
-static void show_usage()
+static void len_help()
 {
-  int i;
-
-  printf("Usage: %s [OPTIONS] [files]\n",fullprogname);
-  printf("\n");
-  printf("Options:\n");
-  printf("\n");
-  printf("  -u unit  specifies alternate output unit for totals line, where unit is one\n");
-  printf("           of the following:\n");
-  printf("\n");
-  printf("              b  shows totals in terms of bytes (DEFAULT)\n");
-  printf("             kb  shows totals in terms of kilobytes\n");
-  printf("             mb  shows totals in terms of megabytes\n");
-  printf("             gb  shows totals in terms of gigabytes\n");
-  printf("\n");
-  printf("  -D       print debugging information\n");
-  printf("\n");
-  printf("  --       indicates that everything following it is a file name\n");
-  printf("\n");
-  printf("  -v       shows version information\n");
-  printf("  -h       shows this help screen\n");
-  printf("\n");
-  printf("  If no file names are given, then file names are read from standard input.\n");
-  printf("\n");
-  printf("  ------------\n");
-  printf("  Sample uses:\n");
-  printf("  ------------\n");
-  printf("\n");
-  printf("  %% %s",fullprogname);
-  for (i=0;formats[i];i++)
-    if (formats[i]->input_func)
-      printf(" *.%s",formats[i]->extension);
-  printf("\n");
-  printf("\n");
-  printf("  %% find /your/audio/dir -type f | %s -u mb\n",fullprogname);
-  printf("\n");
-
-  exit(0);
+  st_info("Usage: %s [OPTIONS] [files]\n",st_progname());
+  st_info("\n");
+  st_info("Mode-specific options:\n");
+  st_info("\n");
+  st_info("  -U unit show total size in specified unit (*)\n");
+  st_info("  -c      suppress column names\n");
+  st_info("  -h      show this help screen\n");
+  st_info("  -t      suppress totals line\n");
+  st_info("  -u unit show file sizes in specified unit (*)\n");
+  st_info("\n");
+  st_info("          (*) unit is one of: {[b], kb, mb, gb, tb}\n");
+  st_info("\n");
+  st_info("If no filenames are given, then filenames are read from the terminal.\n");
+  st_info("\n");
 }
 
-static void parse(int argc,char **argv,int begin,int *first_arg)
+static int get_unit(char *unit)
 {
-  int start;
+  if (!strcmp(optarg,"b"))
+    return LEVEL_BYTES;
 
-  start = begin;
+  if (!strcmp(optarg,"kb"))
+    return LEVEL_KBYTES;
 
-  while (start < argc && argv[start][0] == '-') {
-    if (argc > start && 0 == strcmp(argv[start],"--")) {
-      start++;
-      break;
+  if (!strcmp(optarg,"mb"))
+    return LEVEL_MBYTES;
+
+  if (!strcmp(optarg,"gb"))
+    return LEVEL_GBYTES;
+
+  if (!strcmp(optarg,"tb"))
+    return LEVEL_TBYTES;
+
+  return LEVEL_UNKNOWN;
+}
+
+static void parse(int argc,char **argv,int *first_arg)
+{
+  int c;
+
+  file_unit_level = LEVEL_BYTES;
+  totals_unit_level = LEVEL_BYTES;
+
+  while ((c = st_getopt(argc,argv,"U:ctu:")) != -1) {
+    switch (c) {
+      case 'U':
+        if (NULL == optarg)
+          st_error("missing total size unit");
+        totals_unit_level = get_unit(optarg);
+        if (LEVEL_UNKNOWN == totals_unit_level)
+          st_help("unknown total size unit: [%s]",optarg);
+        break;
+      case 'c':
+        suppress_column_names = TRUE;
+        break;
+      case 't':
+        suppress_totals_line = TRUE;
+        break;
+      case 'u':
+        if (NULL == optarg)
+          st_error("missing file size unit");
+        file_unit_level = get_unit(optarg);
+        if (LEVEL_UNKNOWN == file_unit_level)
+          st_help("unknown file size unit: [%s]",optarg);
+        break;
     }
-    else if (argc > start && 0 == strcmp(argv[start],"-v"))
-      internal_version();
-    else if (argc > start && 0 == strcmp(argv[start],"-h"))
-      show_usage();
-    else if (argc > start && 0 == strcmp(argv[start],"-D"))
-      shntool_debug = 1;
-    else if (argc > start && 0 == strcmp(argv[start],"-u")) {
-      start++;
-      if (desired_level != LEVEL_UNKNOWN)
-        st_help("too many alternate totals units specified");
-      if (argc <= start)
-        st_help("missing alternate totals unit");
-      if (0 == strcmp(argv[start],"b")) {
-        desired_level = LEVEL_BYTES;
-      }
-      else if (0 == strcmp(argv[start],"kb")) {
-        desired_level = LEVEL_KBYTES;
-      }
-      else if (0 == strcmp(argv[start],"mb")) {
-        desired_level = LEVEL_MBYTES;
-      }
-      else if (0 == strcmp(argv[start],"gb")) {
-        desired_level = LEVEL_GBYTES;
-      }
-      else
-        st_help("unknown unit: %s",argv[start]);
-    }
-    else
-      st_help("unknown argument: %s",argv[start]);
-    start++;
   }
 
-  if (LEVEL_UNKNOWN == desired_level)
-    desired_level = LEVEL_BYTES;
-
-  *first_arg = start;
+  *first_arg = optind;
 }
 
 static void show_len_banner()
 {
-  printf("    length     expanded size   cdr  WAVE problems filename\n");
+  if (suppress_column_names)
+    return;
+
+  st_output("    length     expanded size    cdr  WAVE problems  fmt   ratio  filename\n");
 }
 
 static void print_formatted_length(wave_info *info)
@@ -162,93 +150,111 @@ static void print_formatted_length(wave_info *info)
 
   if (PROB_NOT_CD(info)) {
     for (i=0;i<13-len;i++)
-      printf(" ");
-    printf("%s",info->m_ss);
+      st_output(" ");
+    st_output("%s",info->m_ss);
   }
   else {
     for (i=0;i<12-len;i++)
-      printf(" ");
-    printf("%s ",info->m_ss);
+      st_output(" ");
+    st_output("%s ",info->m_ss);
   }
 }
 
-static void show_stats(wave_info *info)
+static bool show_stats(wave_info *info)
 {
   wlong appended_bytes;
+  bool success;
+
+  success = FALSE;
 
   print_formatted_length(info);
 
-  printf("%14lu   ",info->total_size);
+  if (file_unit_level > 0)
+    st_output("%14.2f",(double)info->total_size / unit_divs[file_unit_level]);
+  else
+    st_output("%14lu",info->total_size);
+
+  st_output(" %s",units[file_unit_level]);
 
   /* CD-R properties */
 
-  printf(" ");
+  st_output("  ");
 
   if (PROB_NOT_CD(info))
-    printf("c%s%s",LEN_NOT_APPLICABLE,LEN_NOT_APPLICABLE);
+    st_output("c%s%s",LEN_NOT_APPLICABLE,LEN_NOT_APPLICABLE);
   else {
-    printf("%s",LEN_OK);
+    st_output("%s",LEN_OK);
     if (PROB_BAD_BOUND(info))
-      printf("b");
+      st_output("b");
     else
-      printf("%s",LEN_OK);
+      st_output("%s",LEN_OK);
 
     if (PROB_TOO_SHORT(info))
-      printf("s");
+      st_output("s");
     else
-      printf("%s",LEN_OK);
+      st_output("%s",LEN_OK);
   }
 
   /* WAVE properties */
 
-  printf("   ");
+  st_output("   ");
 
   if (PROB_HDR_NOT_CANONICAL(info))
-    printf("h");
+    st_output("h");
   else
-    printf("%s",LEN_OK);
+    st_output("%s",LEN_OK);
 
   if (PROB_EXTRA_CHUNKS(info))
-    printf("e");
+    st_output("e");
   else
-    printf("%s",LEN_OK);
+    st_output("%s",LEN_OK);
 
   /* problems */
 
-  printf("   ");
+  st_output("   ");
 
   if (info->file_has_id3v2_tag)
-    printf("3");
+    st_output("3");
   else
-    printf("%s",LEN_OK);
+    st_output("%s",LEN_OK);
 
   if (PROB_DATA_NOT_ALIGNED(info))
-    printf("a");
+    st_output("a");
   else
-    printf("%s",LEN_OK);
+    st_output("%s",LEN_OK);
 
   if (PROB_HDR_INCONSISTENT(info))
-    printf("i");
+    st_output("i");
   else
-    printf("%s",LEN_OK);
+    st_output("%s",LEN_OK);
 
-  if ((0 == info->input_format->is_compressed) && (0 == info->input_format->is_translated)) {
+  if (!info->input_format->is_compressed && !info->input_format->is_translated) {
     appended_bytes = info->actual_size - info->total_size - info->id3v2_tag_size;
 
     if (PROB_TRUNCATED(info))
-      printf("t");
+      st_output("t");
     else
-      printf("%s",LEN_OK);
+      st_output("%s",LEN_OK);
 
     if (PROB_JUNK_APPENDED(info) && appended_bytes > 0)
-      printf("j");
+      st_output("j");
     else
-      printf("%s",LEN_OK);
+      st_output("%s",LEN_OK);
   }
   else
-    printf("%s%s",LEN_NOT_APPLICABLE,LEN_NOT_APPLICABLE);
+    st_output("%s%s",LEN_NOT_APPLICABLE,LEN_NOT_APPLICABLE);
 
-  printf("   %s\n",info->filename);
+  /* input file format */
+  st_output("  %5s",info->input_format->name);
+
+  /* ratio */
+  st_output("  %0.4f",(double)info->actual_size/(double)info->total_size);
+
+  st_output("  %s\n",info->filename);
+
+  success = TRUE;
+
+  return success;
 }
 
 static void show_totals_line()
@@ -257,10 +263,13 @@ static void show_totals_line()
   wlong seconds;
   double ratio;
 
-  if (0 == (info = new_wave_info(NULL)))
+  if (suppress_totals_line)
+    return;
+
+  if (NULL == (info = new_wave_info(NULL)))
     st_error("could not allocate memory for totals");
 
-  if (1 == all_cd_quality) {
+  if (all_cd_quality) {
     /* Note to users from the year 2376:  the m:ss.ff value on the totals line will only be
      * correct as long as the total data size is less than 689 terabytes (2^32 * 176400 bytes).
      * Hopefully, by then you'll all have 2048-bit processers to go with your petabyte keychain
@@ -290,19 +299,19 @@ static void show_totals_line()
 
   print_formatted_length(info);
 
-  ratio = (processed > 0) ? (total_disk_size / total_size) : 0.0;
+  ratio = (num_processed > 0) ? (total_disk_size / total_size) : 0.0;
 
-  total_size /= unit_divs[desired_level];
+  total_size /= unit_divs[totals_unit_level];
 
-  if (desired_level > 0)
-    printf("%14.2f",total_size);
+  if (totals_unit_level > 0)
+    st_output("%14.2f",total_size);
   else
-    printf("%14.0f",total_size);
+    st_output("%14.0f",total_size);
 
-  printf(" %s                    (total%s for %d file%s, %0.4f overall compression ratio)\n",
-    units[desired_level],(processed != 1)?"s":"",processed,(processed != 1)?"s":"",ratio);
+  st_output(" %s                           %0.4f  (%d file%s)\n",
+    units[totals_unit_level],ratio,num_processed,(1 != num_processed)?"s":"");
 
-  free(info);
+  st_free(info);
 }
 
 static void update_totals(wave_info *info)
@@ -312,54 +321,64 @@ static void update_totals(wave_info *info)
   total_length += (double)info->data_size / (double)info->avg_bytes_per_sec;
 
   if (PROB_NOT_CD(info))
-    all_cd_quality = 0;
+    all_cd_quality = FALSE;
 
   total_disk_size += (double)info->actual_size;
 
-  processed++;
+  num_processed++;
 }
 
-static void process_file(char *filename)
+static bool process_file(char *filename)
 {
   wave_info *info;
+  bool success;
 
   if (NULL == (info = new_wave_info(filename)))
-    return;
+    return FALSE;
 
-  show_stats(info);
-  update_totals(info);
+  if ((success = show_stats(info)))
+    update_totals(info);
 
-  free(info);
+  st_free(info);
+
+  return success;
 }
 
-static void process(int argc,char **argv,int start)
+static bool process(int argc,char **argv,int start)
 {
   int i;
   char filename[FILENAME_SIZE];
+  bool success;
+
+  success = TRUE;
 
   show_len_banner();
 
   if (argc < start + 1) {
-    /* no filenames were given, so we're reading files from standard input. */
+    /* no filenames were given, so we're reading files from the terminal. */
     fgets(filename,FILENAME_SIZE-1,stdin);
-    while (0 == feof(stdin)) {
-      filename[strlen(filename)-1] = '\0';
-      process_file(filename);
+    while (!feof(stdin)) {
+      trim(filename);
+      success = (process_file(filename) && success);
       fgets(filename,FILENAME_SIZE-1,stdin);
     }
   }
-  else
-    for (i=start;i<argc;i++)
-      process_file(argv[i]);
+  else {
+    for (i=start;i<argc;i++) {
+      success = (process_file(argv[i]) && success);
+    }
+  }
 
   show_totals_line();
+
+  return success;
 }
 
-static void len_main(int argc,char **argv,int start)
+static bool len_main(int argc,char **argv)
 {
   int first_arg;
 
-  parse(argc,argv,start,&first_arg);
+  parse(argc,argv,&first_arg);
 
-  process(argc,argv,first_arg);
+  return process(argc,argv,first_arg);
 }

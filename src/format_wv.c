@@ -1,10 +1,10 @@
 /*  format_wv.c - wavpack format module
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,99 +13,86 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: format_wv.c,v 1.16 2004/05/05 05:39:12 jason Exp $
- */
-
-#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include "shntool.h"
+#include <ctype.h>
 #include "format.h"
-#include "fileio.h"
-#include "misc.h"
-#include "wave.h"
+
+CVSID("$Id: format_wv.c,v 1.65 2007/01/23 14:09:11 jason Exp $")
 
 #define WAVPACK  "wavpack"
 #define WVUNPACK "wvunpack"
 
 #define WAVPACK_MAGIC "wvpk"
+#define WV_COMMON_HEADER_SIZE 10
 
-#define NOT_WV_FILE 0  /* not a valid WavPack file (or raw mode) */
-#define LOSSLESS_WV 1  /* standard lossless WavPack file */
-#define HYBRID_WV   2  /* hybrid WavPack file with correction file */
-#define LOSSY_WV    3  /* hybrid WavPack file without correction file */
+#ifdef WIN32
+static char default_decoder_args[] = "-q -y " FILENAME_PLACEHOLDER " -";
+static char default_encoder_args[] = "-q -y - " FILENAME_PLACEHOLDER;
+#else
+static char default_decoder_args[] = "-q -y " FILENAME_PLACEHOLDER " -o -";
+static char default_encoder_args[] = "-q -y - -o " FILENAME_PLACEHOLDER;
+#endif
 
-#define RAW_FLAG           4  /* raw mode (no .wav header) */
-#define NEW_HIGH_FLAG  0x400  /* new high quality mode (lossless only) */
+/* definitions for version 3 and older */
+#define RAW_FLAG             4      /* raw mode (no .wav header) */
+#define NEW_HIGH_FLAG        0x400  /* new high quality mode (lossless only) */
+#define WavpackHeader3Format "4LSSSSLLL4L"
 
-typedef struct {
+typedef struct _WavpackHeader3 {
   char ckID[4];
-  long ckSize;
+  int ckSize;
   short version;
   short bits;
   short flags, shift;
-  long total_samples, crc, crc2;
+  int total_samples, crc, crc2;
   char extension[4], extra_bc, extras[3];
-} WavpackHeader;
+} WavpackHeader3;
 
-static FILE *open_for_input(char *,int *);
-static FILE *open_for_output(char *,int *);
-static int is_our_file(char *);
+/* definitions for version 4 */
+#define HYBRID_FLAG          8
+#define ID_WVC_BITSTREAM  0xb  /* these metadata identify .wvc */
+#define ID_SHAPING_WEIGHTS  0x7
+#define WavpackHeader4Format "4LS2LLLLL"
+
+typedef struct _WavpackHeader4 {
+  char ckID[4];
+  int ckSize;
+  short version;
+  unsigned char track_no, index_no;
+  int total_samples, block_index, block_samples, flags, crc;
+} WavpackHeader4;
+
+static bool is_our_file(char *);
 
 format_module format_wv = {
   "wv",
   "WavPack Hybrid Lossless Audio Compression",
-  "wv",
+  CVSIDSTR,
+  TRUE,
+  TRUE,
+  FALSE,
+  TRUE,
+  TRUE,
+  FALSE,
+  NULL,
+  NULL,
   0,
-  1,
-  WAVPACK,
+  "wv",
   WVUNPACK,
+  default_decoder_args,
+  WAVPACK,
+  default_encoder_args,
   is_our_file,
-  open_for_input,
-  open_for_output,
+  NULL,
+  NULL,
+  NULL,
   NULL,
   NULL
 };
-
-static FILE *open_for_input(char *filename,int *pid)
-{
-  FILE *input,*output;
-
-  arg_add(WVUNPACK);
-  arg_add("-y");
-  arg_add(filename);
-  arg_add("-");
-
-  *pid = spawn_input(&input,&output);
-
-  if (output)
-    fclose(output);
-
-  return input;
-}
-
-static FILE *open_for_output(char *filename,int *pid)
-{
-  FILE *input,*output;
-
-  if (CLOBBER_FILE_YES != clobber_check(filename))
-    return NULL;
-
-  arg_add(WAVPACK);
-  arg_add("-y");
-  arg_add("-");
-  arg_add(filename);
-
-  *pid = spawn_output(&input,&output);
-
-  if (input)
-    fclose(input);
-
-  return output;
-}
 
 static char *filespec_ext(char *filespec)
 {
@@ -126,83 +113,186 @@ static char *filespec_ext(char *filespec)
   return NULL;
 }
 
-static int is_our_file(char *filename)
+static void little_endian_to_native (void *data, char *format)
 {
-  wave_info *info;
-  WavpackHeader wph;
+  unsigned char *cp = (unsigned char *) data;
+  int temp;
+
+  while (*format) {
+    switch (*format) {
+      case 'L':
+        temp = cp [0] + (cp [1] << 8) + ((int) cp [2] << 16) + ((int) cp [3] << 24);
+        * (int *) cp = temp;
+        cp += 4;
+        break;
+
+      case 'S':
+        temp = cp [0] + (cp [1] << 8);
+        * (short *) cp = temp;
+        cp += 2;
+        break;
+
+      default:
+        if (isdigit (*format))
+          cp += *format - '0';
+        break;
+    }
+
+    format++;
+  }
+}
+
+static bool file_exists_with_alternate_extension(char *filename,char *ext)
+{
+  char wvc_filename[FILENAME_SIZE];
   char *extp;
   FILE *f;
-  int i;
 
-  if (0 == (info = new_wave_info(NULL)))
+  strcpy(wvc_filename,filename);
+
+  extp = filespec_ext(wvc_filename);
+
+  if (extp)
+    *extp = 0;
+
+  strcat(wvc_filename,ext);
+
+  if ((f = fopen(wvc_filename,"rb"))) {
+    fclose(f);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+static bool is_our_file(char *filename)
+{
+  wave_info *info;
+  unsigned char wph[64];
+  WavpackHeader3 *wph3;
+  WavpackHeader4 *wph4;
+  char first_id;
+  int remaining_bytes;
+
+  if (NULL == (info = new_wave_info(NULL)))
     st_error("could not allocate memory for WAVE info in wv check");
 
   info->filename = filename;
 
-  if (NULL == (info->input = open_input(filename)))
-    return NOT_WV_FILE;
+  if (NULL == (info->input = open_input(filename))) {
+    st_free(info);
+    return FALSE;
+  }
 
-  for (i=0;formats[i];i++)
-    if (0 == strcmp(formats[i]->name,"wav")) {
-      info->input_format = formats[i];
-      break;
-    }
+  info->input_format = find_format("wav");
 
   /* find possible WavPack header location - either after RIFF
    * header, or at beginning of the file ("raw" WavPack file)
    */
 
-  if (0 == verify_wav_header(info)) {
+  if (!verify_wav_header(info)) {
+    /* file didn't have a WAVE header - attempt to reopen at the beginning */
     fclose(info->input);
-    if (NULL == (info->input = open_input(filename)))
-      return NOT_WV_FILE;
+    if (NULL == (info->input = open_input(filename))) {
+      st_free(info);
+      return FALSE;
+    }
   }
 
-  if (sizeof(WavpackHeader) != fread(&wph,1,sizeof(WavpackHeader),info->input)) {
+  /* read up to size of largest header, making sure we read enough to fill the smallest header */
+  memset((void *)wph,0,64);
+
+  if (fread(&wph,1,WV_COMMON_HEADER_SIZE,info->input) != WV_COMMON_HEADER_SIZE) {
     fclose(info->input);
-    return NOT_WV_FILE;
+    st_free(info);
+    return FALSE;
+  }
+
+  if (wph[9] >= 4) {
+    /* we're dealing with a version 4+ file */
+
+    remaining_bytes = sizeof(WavpackHeader4) - WV_COMMON_HEADER_SIZE;
+    if (fread(wph+WV_COMMON_HEADER_SIZE,1,remaining_bytes,info->input) != remaining_bytes) {
+      fclose(info->input);
+      st_free(info);
+      return FALSE;
+    }
+
+    first_id = getc(info->input) & 0x1f;
+
+    fclose(info->input);
+    st_free(info);
+
+    wph4 = (WavpackHeader4 *)wph;
+
+    little_endian_to_native(wph4,WavpackHeader4Format);
+
+    if (tagcmp((unsigned char *)wph4->ckID,(unsigned char *)WAVPACK_MAGIC) || wph4->version < 4 || wph4->version > 0x40f || (wph4->flags & RAW_FLAG)) {
+      return FALSE;
+    }
+
+    st_debug1("examining version >=4 (%d) Wavpack file: [%s]",wph4->version,filename);
+
+    if (wph4->block_samples) {
+      if ((ID_WVC_BITSTREAM == first_id) || (ID_SHAPING_WEIGHTS == first_id)) {
+        /* these ids belong to the correction file */
+        st_debug1("this appears to be a hybrid correction file -- skipping.");
+        return FALSE;
+      }
+
+      if (wph4->flags & HYBRID_FLAG) {
+        /* hybrid */
+        if (file_exists_with_alternate_extension(filename,".wvc") || file_exists_with_alternate_extension(filename,".WVC"))
+          return TRUE;
+
+        /* lossy */
+        st_warning("encountered lossy WavPack file: [%s]",filename);
+        return TRUE;
+      }
+    }
+
+    /* lossless */
+    return TRUE;
+  }
+
+  /* we're dealing with an older file */
+
+  remaining_bytes = sizeof(WavpackHeader3) - WV_COMMON_HEADER_SIZE;
+  if (fread(wph+WV_COMMON_HEADER_SIZE,1,remaining_bytes,info->input) != remaining_bytes) {
+    fclose(info->input);
+    st_free(info);
+    return FALSE;
   }
 
   fclose(info->input);
+  st_free(info);
 
-  if (tagcmp(wph.ckID,WAVPACK_MAGIC) || wph.version < 1 || wph.version > 3 || (wph.flags & RAW_FLAG)) {
-    return NOT_WV_FILE;
+  wph3 = (WavpackHeader3 *)wph;
+
+  little_endian_to_native(wph3,WavpackHeader3Format);
+
+  if (tagcmp((unsigned char *)wph3->ckID,(unsigned char *)WAVPACK_MAGIC) || wph3->version < 1 || wph3->version > 3 || (wph3->flags & RAW_FLAG)) {
+    return FALSE;
   }
 
-  if (wph.version == 3 && wph.bits && (wph.flags & NEW_HIGH_FLAG) && wph.crc != wph.crc2) {
-    char wvc_filename[FILENAME_SIZE];
+  st_debug1("examining version <=3 (%d) Wavpack file: [%s]",wph3->version,filename);
 
-    strcpy(wvc_filename,filename);
-
-    extp = filespec_ext(wvc_filename);
-
-    if (extp)
-      *extp = '\0';
-
-    strcat(wvc_filename,".wvc");
-
-    if ((f = fopen(wvc_filename,"rb"))) {
-      fclose(f);
-      return HYBRID_WV;
-    }
-
-    /* for non-windows systems we must also try opposite case */
-
-    strcpy(extp,".WVC");
-
-    if ((f = fopen(wvc_filename,"rb"))) {
-      fclose(f);
-      return HYBRID_WV;
-    }
-
-    st_warning("input file '%s' is a lossy WavPack file",filename);
-    return LOSSY_WV;
+  /* lossy */
+  if (wph3->version == 3 && wph3->bits && (wph3->flags & NEW_HIGH_FLAG) && wph3->crc != wph3->crc2) {
+    st_warning("encountered lossy WavPack file: [%s]",filename);
+    return TRUE;
   }
 
-  if (wph.bits) {
-    st_warning("input file '%s' is a lossy WavPack file",filename);
-    return LOSSY_WV;
+  if (wph3->bits) {
+    /* hybrid */
+    if (file_exists_with_alternate_extension(filename,".wvc") || file_exists_with_alternate_extension(filename,".WVC"))
+      return TRUE;
+
+    /* lossy */
+    st_warning("encountered lossy WavPack file: [%s]",filename);
+    return TRUE;
   }
 
-  return LOSSLESS_WV;
+  /* lossless */
+  return TRUE;
 }

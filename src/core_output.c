@@ -1,10 +1,10 @@
 /*  core_output.c - generic output functions
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,32 +13,53 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: core_output.c,v 1.11 2004/03/29 08:47:11 jason Exp $
- */
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include "shntool.h"
-#include "misc.h"
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+CVSID("$Id: core_output.c,v 1.34 2007/01/01 06:22:25 jason Exp $")
 
 static char msgbuf[BUF_SIZE];
+static char errbuf[BUF_SIZE];
+
+void st_output(char *msg, ...)
+{
+  va_list args;
+
+  va_start(args,msg);
+
+  st_vsnprintf(msgbuf,BUF_SIZE,msg,args);
+
+  fprintf(stdout,"%s",msgbuf);
+
+  va_end(args);
+}
+
+void st_info(char *msg, ...)
+{
+  va_list args;
+
+  if (st_priv.suppress_stderr)
+    return;
+
+  va_start(args,msg);
+
+  st_vsnprintf(errbuf,BUF_SIZE,msg,args);
+
+  fprintf(stderr,"%s",errbuf);
+
+  va_end(args);
+}
 
 static void print_prefix()
 {
-  if (1 == aliased || NULL == progmode)
-    fprintf(stderr,"%s: ",progname);
+  if (st_priv.is_aliased || NULL == st_priv.progmode)
+    fprintf(stderr,"%s: ",st_priv.progname);
   else
-    fprintf(stderr,"%s [%s]: ",progname,progmode);
+    fprintf(stderr,"%s [%s]: ",st_priv.progname,st_priv.progmode);
 }
 
 static void print_msgtype(char *msgtype,int line)
@@ -60,9 +81,9 @@ static void print_lines(char *msgtype,char *msg)
   char *head, *tail;
 
   head = tail = msgbuf;
-  while (*head != '\0') {
-    if (*head == '\n') {
-      *head = '\0';
+  while (*head) {
+    if ('\n' == *head) {
+      *head = 0;
 
       print_prefix();
       print_msgtype(msgtype,line);
@@ -85,13 +106,13 @@ void st_error(char *msg, ...)
 
   va_start(args,msg);
 
-  my_vsnprintf(msgbuf,BUF_SIZE,msg,args);
+  st_vsnprintf(msgbuf,BUF_SIZE,msg,args);
 
   print_lines("error: ",msgbuf);
 
   va_end(args);
 
-  exit(1);
+  exit(ST_EXIT_ERROR);
 }
 
 void st_help(char *msg, ...)
@@ -100,7 +121,7 @@ void st_help(char *msg, ...)
 
   va_start(args,msg);
 
-  my_vsnprintf(msgbuf,BUF_SIZE,msg,args);
+  st_vsnprintf(msgbuf,BUF_SIZE,msg,args);
 
   print_lines("error: ",msgbuf);
 
@@ -109,36 +130,64 @@ void st_help(char *msg, ...)
   print_prefix();
   fprintf(stderr,"\n");
   print_prefix();
-  fprintf(stderr,"type '%s -h' for help\n",fullprogname);
+  fprintf(stderr,"type '%s -h' for help\n",st_priv.fullprogname);
 
-  exit(1);
+  exit(ST_EXIT_ERROR);
 }
 
 void st_warning(char *msg, ...)
 {
   va_list args;
 
+  if (st_priv.suppress_warnings || st_priv.suppress_stderr)
+    return;
+
   va_start(args,msg);
 
-  my_vsnprintf(msgbuf,BUF_SIZE,msg,args);
+  st_vsnprintf(msgbuf,BUF_SIZE,msg,args);
 
   print_lines("warning: ",msgbuf);
 
   va_end(args);
 }
 
-void st_debug(char *msg, ...)
+void st_debug_internal(int level,char *msg,va_list args)
+{
+  char debugprefix[16];
+
+  if (level > st_priv.debug_level)
+    return;
+
+  st_vsnprintf(msgbuf,BUF_SIZE,msg,args);
+
+  st_snprintf(debugprefix,16,"debug%d: ",level);
+
+  print_lines(debugprefix,msgbuf);
+}
+
+void st_debug1(char *msg, ...)
 {
   va_list args;
 
-  if (0 == shntool_debug)
-    return;
+  va_start(args,msg);
+  st_debug_internal(1,msg,args);
+  va_end(args);
+}
+
+void st_debug2(char *msg, ...)
+{
+  va_list args;
 
   va_start(args,msg);
+  st_debug_internal(2,msg,args);
+  va_end(args);
+}
 
-  my_vsnprintf(msgbuf,BUF_SIZE,msg,args);
+void st_debug3(char *msg, ...)
+{
+  va_list args;
 
-  print_lines("debug: ",msgbuf);
-
+  va_start(args,msg);
+  st_debug_internal(3,msg,args);
   va_end(args);
 }

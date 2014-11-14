@@ -1,10 +1,10 @@
 /*  mode_conv.c - conv mode module
- *  Copyright (C) 2000-2004  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,303 +13,290 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * $Id: mode_conv.c,v 1.45 2004/04/13 07:16:57 jason Exp $
- */
+#include "mode.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "shntool.h"
-#include "fileio.h"
-#include "wave.h"
-#include "misc.h"
+CVSID("$Id: mode_conv.c,v 1.103 2007/06/01 04:24:08 jason Exp $")
 
-static int output_dir_flag = 0;
-
-static char *output_directory = ".";
-
-static format_module *op = NULL;
-
-static void conv_main(int,char **,int);
+static bool conv_main(int,char **);
+static void conv_help(void);
 
 mode_module mode_conv = {
   "conv",
   "shnconv",
-  "converts files from one format to another",
-  conv_main
+  "Converts files from one format to another",
+  CVSIDSTR,
+  TRUE,
+  conv_main,
+  conv_help
 };
 
-static void show_usage()
+static bool read_from_terminal = FALSE;
+
+static void conv_help()
 {
-  int i,j=0;
-
-  printf("Usage: %s [OPTIONS] [files]\n",fullprogname);
-  printf("\n");
-  printf("Options:\n");
-  printf("\n");
-  printf("  -o fmt  specifies the output file format, where fmt is one of the following:\n");
-  printf("\n");
-  for (i=0;formats[i];i++)
-    if (formats[i]->output_func)
-      printf("             %" MAX_MODULE_NAME_LENGTH "s  (%s) %s\n",formats[i]->name,formats[i]->description,(0 == (j++))?"[DEFAULT]":"");
-  printf("\n");
-  printf("  -O val  specifies whether output files should be overwritten if they exist.\n");
-  printf("          val must be one of:  ask always never  (default is always)\n");
-  printf("\n");
-  printf("  -d dir  specifies alternate output directory (default is same as input file)\n");
-  printf("\n");
-  printf("  -D      print debugging information\n");
-  printf("\n");
-  printf("  --      indicates that everything following it is a file name\n");
-  printf("\n");
-  printf("  -v      shows version information\n");
-  printf("  -h      shows this help screen\n");
-  printf("\n");
-  printf("  If no file names are given, then file names are read from standard input.\n");
-  printf("\n");
-  printf("  ------------\n");
-  printf("  Sample uses:\n");
-  printf("  ------------\n");
-  printf("\n");
-  printf("  %% %s -o shn filename.wav\n",fullprogname);
-  printf("\n");
-  printf("  %% find / -name \\*.shn | %s -o flac\n",fullprogname);
-  printf("\n");
-
-  exit(0);
+  st_info("Usage: %s [OPTIONS] [files]\n",st_progname());
+  st_info("\n");
+  st_info("Mode-specific options:\n");
+  st_info("\n");
+  st_info("  -h      show this help screen\n");
+  st_info("  -t      read WAVE data from the terminal\n");
+  st_info("\n");
+  st_info("If no filenames are given, then filenames are read from the terminal\n");
+  st_info("unless -t is specified.\n");
+  st_info("\n");
 }
 
-static void parse(int argc,char **argv,int begin,int *first_arg)
+static void parse(int argc,char **argv,int *first_arg)
 {
-  int start,i,found_output = -1;
+  int c;
 
-  start = begin;
+  st_ops.output_directory = INPUT_FILE_DIR;
 
-  for (i=0;formats[i];i++)
-    if (formats[i]->output_func) {
-      found_output = i;
-      break;
+  while ((c = st_getopt(argc,argv,"t")) != -1) {
+    switch (c) {
+      case 't':
+        read_from_terminal = TRUE;
+        break;
     }
-
-  if (-1 == found_output)
-    st_error("no output formats found, cannot continue");
-
-  while (start < argc && argv[start][0] == '-') {
-    if (argc > start && 0 == strcmp(argv[start],"--")) {
-      start++;
-      break;
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-v"))
-      internal_version();
-    else if (argc > start && 0 == strcmp(argv[start],"-h"))
-      show_usage();
-    else if (argc > start && 0 == strcmp(argv[start],"-D"))
-      shntool_debug = 1;
-    else if (argc > start && 0 == strcmp(argv[start],"-d")) {
-      if (1 == output_dir_flag)
-        st_help("too many output directories specified");
-      start++;
-      output_dir_flag = 1;
-      if (argc <= start)
-        st_help("missing output directory");
-      output_directory = argv[start];
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-o")) {
-      if (NULL != op)
-        st_help("too many output file formats specified");
-      op = output_format_init(argc,argv,&start);
-    }
-    else if (argc > start && 0 == strcmp(argv[start],"-O")) {
-      start++;
-      if (argc <= start)
-        st_help("missing overwrite action");
-      if (0 == strcmp(argv[start],"ask"))
-        clobberflag = CLOBBER_ACTION_ASK;
-      else if (0 == strcmp(argv[start],"always"))
-        clobberflag = CLOBBER_ACTION_ALWAYS;
-      else if (0 == strcmp(argv[start],"never"))
-        clobberflag = CLOBBER_ACTION_NEVER;
-      else
-        st_help("invalid overwrite action: %s",argv[start]);
-    }
-    else {
-      st_help("unknown argument: %s",argv[start]);
-    }
-    start++;
   }
 
-  if (NULL == op) {
-    op = formats[found_output];
-    st_warning("no output format specified - assuming %s",op->name);
-  }
-
-  *first_arg = start;
+  *first_arg = optind;
 }
 
-static void make_outfilename(wave_info *info,char *outfilename)
+static bool conv_file(wave_info *info)
 {
-  char *ext,*basename,infilename[FILENAME_SIZE];
-
-  strcpy(infilename,info->filename);
-
-  if ((basename = strrchr(infilename,'/')))
-    basename++;
-  else
-    basename = infilename;
-
-  if ((ext = strrchr(basename,'.')) && (0 == strcmp(ext+1,info->input_format->extension)))
-    *ext = '\0';
-
-  if (1 == output_dir_flag)
-    my_snprintf(outfilename,FILENAME_SIZE,"%s/%s.%s",output_directory,basename,op->extension);
-  else
-    my_snprintf(outfilename,FILENAME_SIZE,"%s.%s",infilename,op->extension);
-}
-
-static void conv_file(wave_info *info)
-{
-  int output_pid,bytes,success = 0;
-  FILE *output;
+  int bytes;
+  proc_info output_proc;
+  FILE *output = NULL;
   char outfilename[FILENAME_SIZE];
-  unsigned char *header,nullpad[BUF_SIZE];
+  unsigned char *header = NULL,nullpad[BUF_SIZE];
+  bool success;
+  progress_info proginfo;
 
-  make_outfilename(info,outfilename);
+  create_output_filename(info->filename,info->input_format->extension,outfilename);
+
+  success = FALSE;
+
+  proginfo.initialized = FALSE;
+  proginfo.prefix = "Converting";
+  proginfo.clause = "-->";
+  proginfo.filename1 = info->filename;
+  proginfo.filedesc1 = info->m_ss;
+  proginfo.filename2 = outfilename;
+  proginfo.filedesc2 = NULL;
+  proginfo.bytes_total = info->total_size;
+
+  prog_update(&proginfo);
 
   if (files_are_identical(info->filename,outfilename)) {
-    st_warning("output file '%s' would overwrite input file '%s' - skipping.",outfilename,info->filename);
-    return;
+    prog_error(&proginfo);
+    st_warning("output file would overwrite input file -- skipping.");
+    return FALSE;
   }
 
-  if (0 != open_input_stream(info)) {
-    st_warning("could not open file '%s' for input - skipping.",info->filename);
-    return;
+  if (!open_input_stream(info)) {
+    prog_error(&proginfo);
+    st_warning("could not open input file -- skipping.");
+    return FALSE;
   }
 
-  if (NULL == (output = op->output_func(outfilename,&output_pid))) {
-    st_warning("could not open file '%s' for output - skipping.",outfilename);
-    goto cleanup1;
+  if (NULL == (output = open_output_stream(outfilename,&output_proc))) {
+    prog_error(&proginfo);
+    st_warning("could not open output file -- skipping.");
+    goto cleanup;
   }
 
   if (NULL == (header = malloc(info->header_size * sizeof(unsigned char)))) {
-    st_warning("could not allocate %d bytes for WAVE header from file '%s' - skipping.",info->header_size,info->filename);
-    goto cleanup2;
+    prog_error(&proginfo);
+    st_warning("could not allocate %d-byte WAVE header -- skipping.",info->header_size);
+    goto cleanup;
   }
 
-  printf("converting '%s' to '%s' ... ",info->filename,outfilename);
-  fflush(stdout);
-
-  if (read_n_bytes(info->input,header,info->header_size) != info->header_size) {
-    st_warning("error while discarding %d-byte header - skipping.",info->header_size);
-    goto cleanup3;
+  if (read_n_bytes(info->input,header,info->header_size,NULL) != info->header_size) {
+    prog_error(&proginfo);
+    st_warning("error while discarding %d-byte WAVE header -- skipping.",info->header_size);
+    goto cleanup;
   }
 
-  if (0 == do_header_kluges(header,info)) {
-    st_warning("could not fix WAVE header - skipping.");
-    goto cleanup3;
+  if (!do_header_kluges(header,info)) {
+    prog_error(&proginfo);
+    st_warning("could not fix WAVE header -- skipping.");
+    goto cleanup;
   }
 
-  if ((info->header_size > 0) && write_n_bytes(output,header,info->header_size) != info->header_size) {
-    st_warning("error while writing %d-byte header - skipping.",info->header_size);
-    goto cleanup3;
+  if ((info->header_size > 0) && write_n_bytes(output,header,info->header_size,&proginfo) != info->header_size) {
+    prog_error(&proginfo);
+    st_warning("error while writing %d-byte WAVE header -- skipping.",info->header_size);
+    goto cleanup;
   }
 
-  if ((info->data_size > 0) && (transfer_n_bytes(info->input,output,info->data_size) != info->data_size)) {
-    st_warning("error while transferring %lu-byte data chunk - skipping.",info->data_size);
-    goto cleanup3;
+  if ((info->data_size > 0) && (transfer_n_bytes(info->input,output,info->data_size,&proginfo) != info->data_size)) {
+    prog_error(&proginfo);
+    st_warning("error while transferring %lu-byte data chunk -- skipping.",info->data_size);
+    goto cleanup;
   }
 
   if (PROB_ODD_SIZED_DATA(info)) {
     nullpad[0] = 1;
 
-    bytes = read_n_bytes_quiet(info->input,nullpad,1);
+    bytes = read_n_bytes(info->input,nullpad,1,&proginfo);
 
     if ((1 != bytes) && (0 != bytes)) {
-      st_warning("error while reading possible NULL pad byte from file '%s'",info->filename);
-      goto cleanup3;
+      prog_error(&proginfo);
+      st_warning("error while reading possible NULL pad byte from input file -- skipping.");
+      goto cleanup;
     }
 
-    if ((0 == bytes) || ((1 == bytes) && (0 != nullpad[0]))) {
-      st_debug("file '%s' does not contain NULL pad byte for odd-sized data chunk per RIFF specs",info->filename);
+    if ((0 == bytes) || ((1 == bytes) && nullpad[0])) {
+      st_debug1("missing NULL pad byte for odd-sized data chunk in file: [%s]",info->filename);
     }
 
     if (1 == bytes) {
       if (0 == nullpad[0]) {
-        if (write_n_bytes(output,nullpad,1) != 1) {
-          st_warning("error while writing NULL pad byte");
-          goto cleanup3;
+        if (write_n_bytes(output,nullpad,1,&proginfo) != 1) {
+          prog_error(&proginfo);
+          st_warning("error while writing NULL pad byte -- skipping.");
+          goto cleanup;
         }
       }
       else {
-        if (write_n_bytes(output,nullpad,1) != 1) {
-          st_warning("error while writing initial extra byte");
-          goto cleanup3;
+        if (write_n_bytes(output,nullpad,1,&proginfo) != 1) {
+          prog_error(&proginfo);
+          st_warning("error while writing initial extra byte -- skipping.");
+          goto cleanup;
         }
       }
     }
   }
 
-  if (PROB_EXTRA_CHUNKS(info) && (transfer_n_bytes(info->input,output,info->extra_riff_size) != info->extra_riff_size)) {
-    st_warning("error while transferring %lu extra bytes - skipping.",info->extra_riff_size);
-    goto cleanup3;
+  if (PROB_EXTRA_CHUNKS(info) && (transfer_n_bytes(info->input,output,info->extra_riff_size,&proginfo) != info->extra_riff_size)) {
+    st_warning("error while transferring %lu extra bytes -- skipping.",info->extra_riff_size);
+    goto cleanup;
   }
 
-  success = 1;
+  success = TRUE;
 
-  printf("done.\n");
+  prog_success(&proginfo);
 
-cleanup3:
-  free(header);
+cleanup:
+  st_free(header);
 
-cleanup2:
-  if ((CLOSE_CHILD_ERROR_OUTPUT == close_output(output,output_pid)) || (0 == success)) {
-    remove_file(op,outfilename);
+  if ((output) && ((CLOSE_CHILD_ERROR_OUTPUT == close_output(output,output_proc)) || !success)) {
+    success = FALSE;
+    remove_file(outfilename);
   }
 
-cleanup1:
   close_input_stream(info);
+
+  return success;
 }
 
-static void process_file(char *filename)
+static bool conv_terminal()
+{
+  int bytes_read,bytes_written;
+  proc_info output_proc;
+  FILE *output;
+  char outfilename[FILENAME_SIZE];
+  unsigned char buf[XFER_SIZE];
+  bool success;
+  progress_info proginfo;
+
+  success = TRUE;
+
+  create_output_filename("terminal","wav",outfilename);
+
+  if (NULL == (output = open_output_stream(outfilename,&output_proc))) {
+    st_warning("could not open output file: [%s]",outfilename);
+    return FALSE;
+  }
+
+  proginfo.initialized = FALSE;
+  proginfo.prefix = "Converting";
+  proginfo.clause = "-->";
+  proginfo.filename1 = "data from the terminal";
+  proginfo.filedesc1 = NULL;
+  proginfo.filename2 = outfilename;
+  proginfo.filedesc2 = NULL;
+  proginfo.bytes_total = (wlong)-1;
+
+  prog_update(&proginfo);
+
+  while (!feof(stdin)) {
+    /* read data, write to encoder */
+    bytes_read = fread(buf,1,XFER_SIZE,stdin);
+    bytes_written = write_n_bytes(output,buf,bytes_read,&proginfo);
+    if (bytes_read != bytes_written) {
+      success = FALSE;
+      break;
+    }
+  }
+
+  if ((CLOSE_CHILD_ERROR_OUTPUT == close_output(output,output_proc)) || !success) {
+    success = FALSE;
+    prog_error(&proginfo);
+    remove_file(outfilename);
+  }
+  else {
+    success = TRUE;
+    prog_success(&proginfo);
+  }
+
+  return success;
+}
+
+static bool process_file(char *filename)
 {
   wave_info *info;
+  bool success;
 
   if (NULL == (info = new_wave_info(filename)))
-    return;
+    return FALSE;
 
-  conv_file(info);
+  success = conv_file(info);
 
-  free(info);
+  st_free(info);
+
+  return success;
 }
 
-static void process(int argc,char **argv,int start)
+static bool process(int argc,char **argv,int start)
 {
   char filename[FILENAME_SIZE];
   int i;
+  bool success;
+
+  success = TRUE;
+
+  if (read_from_terminal) {
+    return conv_terminal();
+  }
 
   if (argc < start + 1) {
-    /* no filename was given, so we're reading one file name from standard input. */
+    /* no filename was given, so we're reading one filename from the terminal. */
     fgets(filename,FILENAME_SIZE-1,stdin);
-    while (0 == feof(stdin)) {
-      filename[strlen(filename)-1] = '\0';
-      process_file(filename);
+    while (!feof(stdin)) {
+      trim(filename);
+      success = (process_file(filename) && success);
       fgets(filename,FILENAME_SIZE-1,stdin);
     }
   }
   else {
-    for (i=start;i<argc;i++)
-      process_file(argv[i]);
+    for (i=start;i<argc;i++) {
+      success = (process_file(argv[i]) && success);
+    }
   }
+
+  return success;
 }
 
-static void conv_main(int argc,char **argv,int start)
+static bool conv_main(int argc,char **argv)
 {
   int first_arg;
 
-  parse(argc,argv,start,&first_arg);
+  parse(argc,argv,&first_arg);
 
-  process(argc,argv,first_arg);
+  return process(argc,argv,first_arg);
 }

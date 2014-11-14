@@ -1,3 +1,84 @@
+version 3.0.3 (2007-06-01)
+  + improved use of exit codes
+  + mkw format: removed deprecated input kluge
+  + split mode: override path separation characters in CUE-generated files
+
+version 3.0.2 (2007-02-18)
+  + split mode: -c option works again
+  + split mode: support wider range of CUE sheets
+  + aiff format: support for sox 13.x
+
+version 3.0.1 (2007-01-24)
+  + fixed bug with WavPack format detection on 64-bit systems
+  + split mode: fixed bug parsing CUE sheets whose last line lacks a newline
+  + added support for MKW files
+  + added support for MPEG-4 ALS files (input only)
+  + added support for detection of TAK files (no input or output yet)
+  + added support for detection of WMA files (no input or output yet)
+  + added support for detection of RKAU files (no input or output yet)
+
+version 3.0.0 (2007-01-01)
+
+  [platform support]
+  + shntool is now a native windows executable (Cygwin is no longer needed)
+
+  [file formats]
+  + added support for WavPack 4.x files
+  + added support for m4a (Apple Lossless Audio Codec) files (input only)
+  + added support for la (Lossless Audio) files (input only)
+  + added support for tta files (input only)
+  + added support for bonk files
+  + added support for kxs (Kexis) files (input only)
+  + added new format 'term' to send output to a terminal (standard output)
+  + cust format: correct output filenames now shown (instead of "file.custom")
+  + cust format: partially-written output files are now removed on error
+
+  [modes]
+  + added new mode 'gen' to generate arbitrary-sized files containing silence
+  + added new mode 'trim' to trim silence from front and/or back of files
+  + renamed mode 'md5' to 'hash', since it now calculates MD5 and SHA1 hashes
+  + hash mode: added option to reorder filenames - may be useful with -c
+  + split mode: new -n option to control output count format (01, 001, ...)
+  + split mode: support for wider range of CUE sheets
+  + split mode: new -t option to name files based on keywords in CUE sheets
+  + split mode: fixed bug in which -l option failed with large input files
+  + split mode: new -e/-u options for specifying lead-in/lead-out
+  + split mode: new -x option to extract specific tracks
+  + len mode: show compression ratio for individual files as well as overall
+  + len mode: show input file format for each file
+  + len mode: new -c/-t options to suppress column names/totals line
+  + len mode: configurable units for files and totals
+  + conv mode: new -t option to convert WAVE data read from the terminal
+  + fix, join and hash modes: filenames can now be sorted automatically using
+    a natural sorting algorithm, which orders filenames containing numbers the
+    the same way a human would, e.g. "t1.wav, t2.wav, ... t10.wav" instead of
+    "t1.wav, t10.wav, t2.wav, ...".  as this was taken from the sources of GNU
+    ls (see 'ls -v'), it is considered stable enough to be the default.
+    if desired, sorting can still be done interactively, or not at all.
+
+  [global behavior]
+  + user-configureable progress types (percentage, dots, spin, faces or none)
+  + default overwrite option is now 'ask' - can be overridden with -O option
+  + allow on-the-fly renaming when files exist and overwrite option is 'ask'
+  + new -H option to show h:mm:ss.{ff,nnn} in output, instead of m:ss.{ff,nnn}
+  + new -a and -z options to override default file name prefix and postfix
+  + new options -w to suppress warnings and -q to suppress non-critical output
+  + converted to getopt - this means long options have become single characters
+  + alternate input decoder: -i "fmt decoder [arg1 ... argN]"
+  + alternate output ext/encoder: -o "fmt [ext=abc] [encoder [arg1 ... argN]]"
+  + in addition to the new -i/-o options above, default encoders/decoders
+    and/or their arguments, as well as file extensions, can be overridden
+    using any combination of appropriately named environment variables:
+
+      ST_<format>_DEC="decoder [arg1 ... argN]"
+      ST_<format>_ENC="[ext=abc] [encoder [arg1 ... argN]]"
+
+    e.g.:
+
+      % ST_SHN_DEC="shorten-2.3b" shntool len *.shn
+      % ST_FLAC_ENC="flake - %f" shntool conv -o flac *.wav
+      % ST_AIFF_ENC="ext=aif" shntool gen -o aiff -l 1:00
+
 version 2.0.3 (2004-05-05)
   + fixed bug in len mode that sometimes caused the m:ss.ff value on the totals
     line to be reported as being one second longer than it actually is - this
