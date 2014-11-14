@@ -115,6 +115,18 @@ Paolo Saggese, for suggesting that shntool allow user-specified byte-shift
 comparison buffer sizes in cmp mode, for those times when DAE is off by more
 than the default of 3 seconds.
 
+German Pulido, for reporting an issue in which self-extracting WavPack files
+were not being properly detected by shntool.
+
+Albin Larsson, for suggesting that fix mode should handle the case where just
+a single file is specified (essentially postpad the file), which is especially
+useful when using the -c option to check files for boundary issues.
+
+Robert Rozee, for suggesting that shntool could read input filenames from a
+file, instead of listing everything on the command line.
+
+Mark, for reporting multiple issues with cat mode and providing fixes.
+
 -------
 
 Thanks also goes to the developers of the following software, from which I have
@@ -138,4 +150,4 @@ v2strip - shntool's ID3v2 detection was based on the v2strip implementation
 Document revision:
 ==================
 
-$Id: CREDITS,v 1.26 2007/10/22 07:16:01 jason Exp $
+$Id: CREDITS,v 1.30 2009/03/30 06:31:13 jason Exp $

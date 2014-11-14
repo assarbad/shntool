@@ -1,5 +1,5 @@
 /*  core_mode.c - public functions for mode modules
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include "shntool.h"
 
-CVSID("$Id: core_mode.c,v 1.78 2008/02/18 23:25:13 jason Exp $")
+CVSID("$Id: core_mode.c,v 1.88 2009/03/30 05:55:33 jason Exp $")
 
 global_opts st_ops;
 
@@ -1184,20 +1184,14 @@ int st_getopt(int argc,char **argv,char *mode_opts)
     case 'D':
       st_priv.debug_level++;
       break;
+    case 'F':
+      if (NULL == optarg)
+        st_help("missing input file filename");
+      st_input.type = INPUT_FILE;
+      st_input.filename_source = optarg;
+      break;
     case 'H':
       st_priv.show_hmmss = TRUE;
-      break;
-    case 'O':
-      if (NULL == optarg)
-        st_help("missing overwrite action");
-      if (!strcmp(optarg,"ask"))
-        st_priv.clobber_action = CLOBBER_ACTION_ASK;
-      else if (!strcmp(optarg,"always"))
-        st_priv.clobber_action = CLOBBER_ACTION_ALWAYS;
-      else if (!strcmp(optarg,"never"))
-        st_priv.clobber_action = CLOBBER_ACTION_NEVER;
-      else
-        st_help("invalid overwrite action: [%s]",optarg);
       break;
     case 'P':
       if (NULL == optarg)
@@ -1214,16 +1208,6 @@ int st_getopt(int argc,char **argv,char *mode_opts)
         st_priv.progress_type = PROGRESS_NONE;
       else
         st_help("invalid progress indicator type: [%s]",optarg);
-      break;
-    case 'a':
-      if (NULL == optarg)
-        st_help("missing filename prefix");
-      st_ops.output_prefix = optarg;
-      break;
-    case 'd':
-      if (NULL == optarg)
-        st_help("missing output directory");
-      st_ops.output_directory = optarg;
       break;
     case '?':
     case 'h':
@@ -1242,15 +1226,6 @@ int st_getopt(int argc,char **argv,char *mode_opts)
       if (!input_format->supports_input)
         st_help("format does not support input: [%s]",input_format->name);
       parse_input_args_cmd(input_format,optarg);
-      break;
-    case 'o':
-      if (NULL == optarg)
-        st_help("missing output format");
-      if (NULL == (st_ops.output_format = find_format(optarg)))
-        st_help("missing output format name");
-      if (!st_ops.output_format->supports_output)
-        st_help("format does not support output: [%s]",st_ops.output_format->name);
-      parse_output_args_cmd(st_ops.output_format,optarg);
       break;
     case 'q':
       st_priv.suppress_stderr = TRUE;
@@ -1276,11 +1251,47 @@ int st_getopt(int argc,char **argv,char *mode_opts)
     case 'w':
       st_priv.suppress_warnings = TRUE;
       break;
-    case 'z':
-      if (NULL == optarg)
-        st_help("missing filename postfix");
-      st_ops.output_postfix = optarg;
-      break;
+  }
+
+  if (st_priv.mode->creates_files) {
+    switch (opt) {
+      case 'O':
+        if (NULL == optarg)
+          st_help("missing overwrite action");
+        if (!strcmp(optarg,"ask"))
+          st_priv.clobber_action = CLOBBER_ACTION_ASK;
+        else if (!strcmp(optarg,"always"))
+          st_priv.clobber_action = CLOBBER_ACTION_ALWAYS;
+        else if (!strcmp(optarg,"never"))
+          st_priv.clobber_action = CLOBBER_ACTION_NEVER;
+        else
+          st_help("invalid overwrite action: [%s]",optarg);
+        break;
+      case 'a':
+        if (NULL == optarg)
+          st_help("missing filename prefix");
+        st_ops.output_prefix = optarg;
+        break;
+      case 'd':
+        if (NULL == optarg)
+          st_help("missing output directory");
+        st_ops.output_directory = optarg;
+        break;
+      case 'o':
+        if (NULL == optarg)
+          st_help("missing output format");
+        if (NULL == (st_ops.output_format = find_format(optarg)))
+          st_help("missing output format name");
+        if (!st_ops.output_format->supports_output)
+          st_help("format does not support output: [%s]",st_ops.output_format->name);
+        parse_output_args_cmd(st_ops.output_format,optarg);
+        break;
+      case 'z':
+        if (NULL == optarg)
+          st_help("missing filename postfix");
+        st_ops.output_postfix = optarg;
+        break;
+    }
   }
 
   return opt;
@@ -1335,6 +1346,7 @@ void st_global_usage()
   st_info("Global options:\n");
   st_info("\n");
   st_info("  -D      print debugging information (each one increases debugging level)\n");
+  st_info("  -F file get input filenames from file, instead of command line or terminal\n");
   st_info("  -H      print times in h:mm:ss.{ff,nnn} format, instead of m:ss.{ff,nnn}\n");
   if (st_priv.mode->creates_files) {
     st_info("  -O val  overwrite existing files?  val is: {[ask], always, never}\n");
@@ -1614,4 +1626,110 @@ void prog_error(progress_info *proginfo)
   prog_update(proginfo);
 
   prog_finish("ERROR",proginfo);
+}
+
+void input_init(int argn,int argc,char **argv)
+{
+  if (INPUT_FILE != st_input.type && INPUT_INTERNAL != st_input.type) {
+    if (argn >= argc) {
+      st_input.type = INPUT_STDIN;
+    }
+    else {
+      st_input.type = INPUT_CMDLINE;
+    }
+  }
+
+  switch (st_input.type) {
+    case INPUT_CMDLINE:
+      st_debug1("reading input filenames from command line");
+      st_input.argn = argn;
+      st_input.argc = argc;
+      st_input.argv = argv;
+      break;
+
+    case INPUT_STDIN:
+      st_debug1("reading input filenames from stdin");
+      if (isatty(fileno(stdin)))
+        st_info("enter input filename(s):\n");
+      st_input.fd = stdin;
+      break;
+
+    case INPUT_FILE:
+      st_debug1("reading input filenames from file: [%s]",st_input.filename_source);
+      if (NULL == (st_input.fd = fopen(st_input.filename_source,"rb"))) {
+        st_error("could not open input filename file: [%s]",st_input.filename_source);
+      }
+      break;
+
+    case INPUT_INTERNAL:
+      st_input.filecur = 0;
+      break;
+
+    default:
+      break;
+  }
+}
+
+char *input_get_filename()
+{
+  static char internal_filename[FILENAME_SIZE];
+  char *filename = NULL;
+
+  switch (st_input.type) {
+    case INPUT_CMDLINE:
+      if (st_input.argn < st_input.argc) {
+        filename = st_input.argv[st_input.argn];
+        st_input.argn++;
+      }
+      break;
+
+    case INPUT_STDIN:
+    case INPUT_FILE:
+      fgets(internal_filename,FILENAME_SIZE-1,st_input.fd);
+      if (!feof(st_input.fd)) {
+        trim(internal_filename);
+        filename = internal_filename;
+      }
+      else {
+        if (INPUT_FILE == st_input.type) {
+          fclose(st_input.fd);
+        }
+      }
+      break;
+
+    case INPUT_INTERNAL:
+      if (st_input.filecur < st_input.filemax) {
+        st_debug1("returning file %d: [%s]",st_input.filecur,st_input.filenames[st_input.filecur]);
+        filename = st_input.filenames[st_input.filecur];
+        st_input.filecur++;
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  return filename;
+}
+
+void input_read_all_files()
+{
+  char *filename;
+
+  st_input.filemax = 0;
+
+  while ((filename = input_get_filename())) {
+    st_input.filenames[st_input.filemax] = strdup(filename);
+    st_input.filemax++;
+    if (st_input.filemax >= MAX_FILENAMES)
+      st_error("exceeded maximum number of filenames: [%s]",MAX_FILENAMES);
+  }
+
+  st_input.type = INPUT_INTERNAL;
+  st_input.filecur = 0;
+}
+
+int input_get_file_count()
+{
+  return st_input.filemax;
 }

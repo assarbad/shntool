@@ -1,5 +1,5 @@
 /*  core_output.c - generic output functions
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -20,7 +20,7 @@
 #include <stdarg.h>
 #include "shntool.h"
 
-CVSID("$Id: core_output.c,v 1.35 2008/02/18 23:25:13 jason Exp $")
+CVSID("$Id: core_output.c,v 1.36 2009/03/11 17:18:01 jason Exp $")
 
 static char msgbuf[BUF_SIZE];
 static char errbuf[BUF_SIZE];

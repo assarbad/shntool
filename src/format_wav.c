@@ -1,5 +1,5 @@
 /*  format_wav.c - WAVE format module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include "format.h"
 
-CVSID("$Id: format_wav.c,v 1.60 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: format_wav.c,v 1.61 2009/03/11 17:18:01 jason Exp $")
 
 static FILE *open_for_input(char *,proc_info *);
 static FILE *open_for_output(char *,proc_info *);

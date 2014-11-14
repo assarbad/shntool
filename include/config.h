@@ -1,6 +1,9 @@
 /* include/config.h.  Generated from config.h.in by configure.  */
 /* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define if building universal (internal helper macro) */
+/* #undef AC_APPLE_UNIVERSAL_BUILD */
+
 /* Define to 1 if you have the `atol' function. */
 #define HAVE_ATOL 1
 
@@ -53,20 +56,28 @@
 #define PACKAGE_NAME "shntool"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "shntool 3.0.7"
+#define PACKAGE_STRING "shntool 3.0.10"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "shntool"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.0.7"
+#define PACKAGE_VERSION "3.0.10"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "3.0.7"
+#define VERSION "3.0.10"
 
-/* Define to 1 if your processor stores words with the most significant byte
-   first (like Motorola and SPARC, unlike Intel and VAX). */
-/* #undef WORDS_BIGENDIAN */
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+/* #  undef WORDS_BIGENDIAN */
+# endif
+#endif

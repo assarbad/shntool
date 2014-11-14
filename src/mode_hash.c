@@ -1,5 +1,5 @@
 /*  mode_hash.c - hash mode module
- *  Portions copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Portions copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *  This mode module is based on the GNU MD5/SHA1 implementation.  See the
  *  original author/copyright info below.
  *
@@ -25,7 +25,7 @@
 #include <string.h>
 #include "mode.h"
 
-CVSID("$Id: mode_hash.c,v 1.87 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: mode_hash.c,v 1.93 2009/03/17 17:23:05 jason Exp $")
 
 static bool hash_main(int,char **);
 static void hash_help(void);
@@ -982,8 +982,6 @@ static void hash_help()
   st_info("  -m      generate MD5 fingerprints (default)\n");
   st_info("  -s      generate SHA1 fingerprints\n");
   st_info("\n");
-  st_info("If no filenames are given, then filenames are read from the terminal.\n");
-  st_info("\n");
 }
 
 static void parse(int argc,char **argv,int *first_arg)
@@ -1257,7 +1255,7 @@ static void composite_finish()
     return;
 
   if (0 == num_processed)
-    st_error("need at least one valid filename to process");
+    st_error("need at least one valid file to process");
 
   /* Add the last bytes if necessary.  */
   if (remaining_bytes > 0)
@@ -1274,17 +1272,22 @@ static void composite_finish()
 static bool process(int argc,char **argv,int start)
 {
   int i,j = 0,badfiles = 0;
-  char filename[FILENAME_SIZE];
+  char *filename;
   wlong total = 0;
   bool success;
 
   success = TRUE;
 
+  input_init(start,argc,argv);
+  input_read_all_files();
+  numfiles = input_get_file_count();
+
   if (NULL == (files = malloc((numfiles + 1) * sizeof(wave_info *))))
     st_error("could not allocate memory for file info array");
 
   for (i=0;i<numfiles;i++) {
-    if (NULL == (files[j] = new_wave_info(argv[start+i]))) {
+    filename = input_get_filename();
+    if (NULL == (files[j] = new_wave_info(filename))) {
       if (composite_hash)
         st_error("all files must be valid to generate a composite fingerprint");
       success = FALSE;
@@ -1309,21 +1312,10 @@ static bool process(int argc,char **argv,int start)
 
   composite_init(total);
 
-  if (argc < start + 1) {
-    /* no filenames were given, so we're reading files from the terminal. */
-    fgets(filename,FILENAME_SIZE-1,stdin);
-    while (!feof(stdin)) {
-      trim(filename);
-      success = (process_file(filename) && success);
-      fgets(filename,FILENAME_SIZE-1,stdin);
-    }
-  }
-  else {
-    for (i=0;i<numfiles;i++) {
-      if (files[i]) {
-        success = (process_file(files[i]->filename) && success);
-      }
-    }
+  input_init(start,argc,argv);
+
+  while ((filename = input_get_filename())) {
+    success = (process_file(filename) && success);
   }
 
   composite_finish();
@@ -1341,8 +1333,6 @@ static bool hash_main(int argc,char **argv)
   int first_arg;
 
   parse(argc,argv,&first_arg);
-
-  numfiles = argc - first_arg;
 
   return process(argc,argv,first_arg);
 }

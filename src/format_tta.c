@@ -1,5 +1,5 @@
 /*  format_tta.c - tta format module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "format.h"
 
-CVSID("$Id: format_tta.c,v 1.23 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: format_tta.c,v 1.24 2009/03/11 17:18:01 jason Exp $")
 
 #define TTA "ttaenc"
 

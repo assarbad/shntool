@@ -1,5 +1,5 @@
 /*  mode.h - mode module definitions
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: mode.h,v 1.32 2008/02/18 23:25:13 jason Exp $
+ * $Id: mode.h,v 1.39 2009/03/30 06:44:42 jason Exp $
  */
 
 #ifndef __MODE_H__
@@ -28,6 +28,7 @@
 #include "format-types.h"
 #include "mode-types.h"
 #include "module.h"
+#include "binary.h"
 
 /* default output directories */
 #define CURRENT_DIR    "."
@@ -103,5 +104,11 @@ void arg_replace(child_args *,int,char *);
 void prog_update(progress_info *);
 void prog_success(progress_info *);
 void prog_error(progress_info *);
+
+/* functions for managing the input file source */
+void input_init(int,int,char **);
+char *input_get_filename();
+void input_read_all_files();
+int input_get_file_count();
 
 #endif

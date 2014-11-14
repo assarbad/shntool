@@ -1,5 +1,5 @@
 /*  core.h - private type definitions, defines and macros
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: core.h,v 1.91 2008/02/18 23:25:13 jason Exp $
+ * $Id: core.h,v 1.96 2009/03/16 04:46:03 jason Exp $
  */
 
 #ifndef __CORE_H__
@@ -25,21 +25,24 @@
 
 /* program info */
 #define RELEASE   VERSION
-#define COPYRIGHT "Copyright (C) 2000-2008"
+#define COPYRIGHT "Copyright (C) 2000-2009"
 #define AUTHOR    "Jason Jordan <shnutils@freeshell.org>"
 #define URL1      "http://www.etree.org/shnutils/"
 #define URL2      "http://shnutils.freeshell.org/"
 
+/* options for core (non-mode) use */
+#define GLOBAL_OPTS_CORE   "afhjmv"
+
 /* options reserved for global use - modes cannot use these */
-#define GLOBAL_OPTS        "DHP:hi:qr:vw"
+#define GLOBAL_OPTS        "DF:HP:hi:qr:vw"
 #define GLOBAL_OPTS_OUTPUT "O:a:d:o:z:"
-#define GLOBAL_OPTS_CORE   "fhjmv"
 
 /* set this environment variable to enable debugging.  can also use -D, but this enables it earlier */
 #define SHNTOOL_DEBUG_ENV "ST_DEBUG"
 
 /* various buffer sizes */
 #define PROGNAME_SIZE 256
+#define MAX_FILENAMES 32768
 
 #ifdef HAVE_VSNPRINTF
 #define st_vsnprintf(a,b,c,d) vsnprintf(a,b,c,d)
@@ -95,28 +98,49 @@ typedef enum {
   ARGSRC_ENV
 } argument_sources;
 
+/* input file sources */
+typedef enum {
+  INPUT_CMDLINE,
+  INPUT_STDIN,
+  INPUT_FILE,
+  INPUT_INTERNAL
+} input_sources;
+
 /* mode and format module arrays */
 extern mode_module *st_modes[];
 extern format_module *st_formats[];
 
 /* private global options */
 typedef struct _private_opts {
-  char *progname;
-  char *progmode;
-  char  fullprogname[PROGNAME_SIZE];
-  int   debug_level;
-  int   clobber_action;
-  int   reorder_type;
-  int   progress_type;
-  bool  is_aliased;
-  bool  show_hmmss;
-  bool  suppress_warnings;
-  bool  suppress_stderr;
-  bool  screen_dirty;
+  char  *progname;
+  char  *progmode;
+  char   fullprogname[PROGNAME_SIZE];
+  int    debug_level;
+  int    clobber_action;
+  int    reorder_type;
+  int    progress_type;
+  bool   is_aliased;
+  bool   show_hmmss;
+  bool   suppress_warnings;
+  bool   suppress_stderr;
+  bool   screen_dirty;
   mode_module *mode;
 } private_opts;
 
+typedef struct _input_files {
+  int    type;
+  char  *filename_source;
+  FILE  *fd;
+  int    argn;
+  int    argc;
+  char **argv;
+  int    filecur;
+  int    filemax;
+  char  *filenames[MAX_FILENAMES];
+} input_files;
+
 extern private_opts st_priv;
+extern input_files st_input;
 
 /* miscellaneous functions */
 
