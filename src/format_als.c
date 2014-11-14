@@ -1,5 +1,5 @@
 /*  format_als.c - als format module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "format.h"
 
-CVSID("$Id: format_als.c,v 1.4 2008/02/20 00:27:03 jason Exp $")
+CVSID("$Id: format_als.c,v 1.5 2009/03/11 17:18:01 jason Exp $")
 
 #define ALS "mp4als"
 

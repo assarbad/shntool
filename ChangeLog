@@ -1,3 +1,23 @@
+version 3.0.10 (2009-03-30)
+  + cat mode: fixed bug that prevented use of the -d option
+  + cat mode [win32]: properly write WAVE data to the terminal
+  + conv mode [win32]: properly read WAVE data from the terminal
+
+version 3.0.9 (2009-03-18)
+  + allow fix mode to fix (essentially postpad) just one file, which is useful
+    when using the -c option to check for boundary issues
+  + added new global -F option to specify a file containing input filenames
+    (most modes will now accept input filenames from a single source, using the
+     following order of precedence: file specified by -F option, otherwise
+     filenames on the command line, otherwise filenames read from the terminal)
+
+version 3.0.8 (2008-08-27)
+  + added new -a option to show default encoder/decoder arguments
+  + fixed bug when prompting for overwrite action when stdin was
+    already at EOF on certain platforms (e.g. OS X)
+  + split mode: handle CUE sheets that contain Unicode BOMs
+  + wv format: support self-extracting WavPack files
+
 version 3.0.7 (2008-03-02)
   + support for TAK decoding (requires TAK 1.0.4+)
   + updated MPEG-4 ALS to version RM20, and added output support

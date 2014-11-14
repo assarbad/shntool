@@ -1,5 +1,5 @@
 /*  mode_gen.c - gen mode module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 #include <string.h>
 #include "mode.h"
 
-CVSID("$Id: mode_gen.c,v 1.51 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: mode_gen.c,v 1.53 2009/03/16 04:46:03 jason Exp $")
 
 static bool gen_main(int,char **);
 static void gen_help(void);
@@ -40,7 +40,7 @@ static char *gen_size = NULL;
 
 static void gen_help()
 {
-  st_info("Usage: %s [OPTIONS] file\n",st_progname());
+  st_info("Usage: %s [OPTIONS]\n",st_progname());
   st_info("\n");
   st_info("Mode-specific options:\n");
   st_info("\n");

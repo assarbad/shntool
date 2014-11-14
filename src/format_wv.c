@@ -1,5 +1,5 @@
 /*  format_wv.c - wavpack format module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,7 +21,7 @@
 #include <ctype.h>
 #include "format.h"
 
-CVSID("$Id: format_wv.c,v 1.69 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: format_wv.c,v 1.72 2009/03/11 17:18:01 jason Exp $")
 
 #define WAVPACK  "wavpack"
 #define WVUNPACK "wvunpack"
@@ -164,6 +164,37 @@ static bool file_exists_with_alternate_extension(char *filename,char *ext)
   return FALSE;
 }
 
+static long get_header_offset(FILE *f)
+{
+  unsigned char buf[4];
+  long curpos;
+
+  buf[0] = 'x';
+  buf[1] = 'x';
+  buf[2] = 'x';
+  buf[3] = 'x';
+
+  /* like WavPack, we check the first 1 meg of the file for a header. */
+  /* unlike WavPack, we do it in the most inefficient way possible.   */
+
+  for (curpos=0;curpos<1024*1024;curpos++) {
+    buf[0] = buf[1];
+    buf[1] = buf[2];
+    buf[2] = buf[3];
+    buf[3] = fgetc(f);
+
+    if (feof(f)) {
+      return -1;
+    }
+
+    if (!tagcmp(buf,(unsigned char *)WAVPACK_MAGIC)) {
+      return curpos - 3;
+    }
+  }
+
+  return -1;
+}
+
 static bool is_our_file(char *filename)
 {
   wave_info *info;
@@ -172,6 +203,7 @@ static bool is_our_file(char *filename)
   WavpackHeader4 *wph4;
   char first_id;
   int remaining_bytes;
+  long header_offset;
 
   if (NULL == (info = new_wave_info(NULL)))
     st_error("could not allocate memory for WAVE info in wv check");
@@ -183,20 +215,13 @@ static bool is_our_file(char *filename)
     return FALSE;
   }
 
-  info->input_format = find_format("wav");
-
-  /* find possible WavPack header location - either after RIFF
-   * header, or at beginning of the file ("raw" WavPack file)
-   */
-
-  if (!verify_wav_header(info)) {
-    /* file didn't have a WAVE header - attempt to reopen at the beginning */
+  if (-1 == (header_offset = get_header_offset(info->input))) {
     fclose(info->input);
-    if (NULL == (info->input = open_input(filename))) {
-      st_free(info);
-      return FALSE;
-    }
+    st_free(info);
+    return FALSE;
   }
+
+  fseek(info->input,header_offset,SEEK_SET);
 
   /* read up to size of largest header, making sure we read enough to fill the smallest header */
   memset((void *)wph,0,64);

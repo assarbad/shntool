@@ -1,5 +1,5 @@
 /*  mode_trim.c - trim mode module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_trim.c,v 1.51 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: mode_trim.c,v 1.56 2009/03/17 17:23:05 jason Exp $")
 
 static bool trim_main(int,char **);
 static void trim_help(void);
@@ -47,8 +47,6 @@ static void trim_help()
   st_info("  -b      only trim silence from the beginning of files\n");
   st_info("  -e      only trim silence from the end of files\n");
   st_info("  -h      show this help screen\n");
-  st_info("\n");
-  st_info("If no filenames are given, then filenames are read from the terminal.\n");
   st_info("\n");
 }
 
@@ -373,26 +371,16 @@ static bool process_file(char *filename)
 }
 
 static bool process(int argc,char **argv,int start)
-{
-  char filename[FILENAME_SIZE];
-  int i;
+{  
+  char *filename;
   bool success;
 
   success = TRUE;
 
-  if (argc < start + 1) {
-    /* no filename was given, so we're reading one filename from the terminal. */
-    fgets(filename,FILENAME_SIZE-1,stdin);
-    while (!feof(stdin)) {
-      trim(filename);
-      success = (process_file(filename) && success);
-      fgets(filename,FILENAME_SIZE-1,stdin);
-    }
-  }
-  else {
-    for (i=start;i<argc;i++) {
-      success = (process_file(argv[i]) && success);
-    }
+  input_init(start,argc,argv);
+
+  while ((filename = input_get_filename())) {
+    success = (process_file(filename) && success);
   }
 
   return success;

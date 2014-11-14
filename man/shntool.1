@@ -1,4 +1,4 @@
-.TH SHNTOOL 1 "March 2008" "shntool 3.0.7" "local"
+.TH SHNTOOL 1 "March 2009" "shntool 3.0.10" "local"
 .SH "NAME"
 shntool \- a multi\(hypurpose WAVE data processing and reporting utility
 
@@ -140,30 +140,20 @@ Monkey's Audio Compressor (via 'mac'):
 .br
 <http://supermmx.org/linux/mac/>
 .TP
-.I ofr
-OptimFROG Lossless WAVE Audio Coder (via 'ofr'):
-.br
-<http://www.losslessaudio.org/>
-.TP
-.I lpac
-Lossless Predictive Audio Compression (via 'lpac'):
-.br
-<http://www.nue.tu\-berlin.de/wer/liebchen/lpac.html>
-.TP
-.I wv
-WavPack Hybrid Lossless Audio Compression (via 'wavpack' and 'wvunpack'):
-.br
-<http://www.wavpack.com/>
-.TP
 .I alac
 Apple Lossless Audio Codec (via 'alac'):
 .br
 <http://craz.net/programs/itunes/alac.html>
 .TP
-.I la
-Lossless Audio (via 'la'):
+.I tak
+(T)om's lossless (A)udio (K)ompressor (via 'takc'):
 .br
-<http://www.lossless\-audio.com/>
+<http://www.thbeck.de/Tak/Tak.html>
+.TP
+.I ofr
+OptimFROG Lossless WAVE Audio Coder (via 'ofr'):
+.br
+<http://www.losslessaudio.org/>
 .TP
 .I tta
 TTA Lossless Audio Codec (via 'ttaenc'):
@@ -177,10 +167,20 @@ MPEG\-4 Audio Lossless Coding (via 'mp4als'):
 .br
 lossless/mp4als.html>
 .TP
-.I tak
-(T)om's lossless (A)udio (K)ompressor (via 'takc'):
+.I wv
+WavPack Hybrid Lossless Audio Compression (via 'wavpack' and 'wvunpack'):
 .br
-<http://www.thbeck.de/Tak/Tak.html>
+<http://www.wavpack.com/>
+.TP
+.I lpac
+Lossless Predictive Audio Compression (via 'lpac'):
+.br
+<http://www.nue.tu\-berlin.de/wer/liebchen/lpac.html>
+.TP
+.I la
+Lossless Audio (via 'la'):
+.br
+<http://www.lossless\-audio.com/>
 .TP
 .I bonk
 Bonk lossy/lossless audio compressor (via 'bonk'):
@@ -235,6 +235,9 @@ Show detailed mode module information
 .B \-f
 Show detailed format module information
 .TP
+.B \-a
+Show default format module arguments
+.TP
 .B \-v
 Show version information
 .TP
@@ -247,6 +250,16 @@ All modes support the following options:
 .TP
 .B \-D
 Print debugging information
+.TP
+.BI "\-F " "file"
+Specify a file containing a list of filenames to process.  This overrides any files specified on the command line or on the terminal.
+.br
+
+.br
+NOTE: Most modes will accept input filenames from a single source, according to the following order of precedence:
+file specified by the
+.B \-F
+option, otherwise filenames on the command line, otherwise filenames read from the terminal.
 .TP
 .B \-H
 Print times in h:mm:ss.{ff,nnn} format, instead of m:ss.{ff,nnn}
@@ -930,11 +943,11 @@ The latest version of
 can always be found at <http://www.etree.org/shnutils/> or <http://shnutils.freeshell.org/>.
 
 .SH "COPYRIGHT"
-Copyright (C) 2000\-2008 Jason Jordan
+Copyright (C) 2000\-2009 Jason Jordan
 .br
 
 This is free software.  You may redistribute copies of it under the terms of the GNU General Public License
 <http://www.gnu.org/licenses/gpl.html>.  There is NO WARRANTY, to the extent permitted by law.
 
 .SH "REVISION"
-$Id: shntool.1,v 1.129 2008/03/03 04:48:45 jason Exp $
+$Id: shntool.1,v 1.140 2009/03/30 05:59:25 jason Exp $

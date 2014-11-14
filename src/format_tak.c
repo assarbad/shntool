@@ -1,5 +1,5 @@
 /*  format_tak.c - tak format module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "format.h"
 
-CVSID("$Id: format_tak.c,v 1.11 2008/02/29 17:21:13 jason Exp $")
+CVSID("$Id: format_tak.c,v 1.12 2009/03/11 17:18:01 jason Exp $")
 
 #define TAK "takc"
 

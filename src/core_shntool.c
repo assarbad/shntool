@@ -1,5 +1,5 @@
 /*  core_shntool.c - functions to handle mode verification and execution
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -20,9 +20,10 @@
 #include <signal.h>
 #include "shntool.h"
 
-CVSID("$Id: core_shntool.c,v 1.83 2008/02/18 23:25:13 jason Exp $")
+CVSID("$Id: core_shntool.c,v 1.90 2009/03/16 04:46:03 jason Exp $")
 
 private_opts st_priv;
+input_files st_input;
 
 void st_version()
 {
@@ -104,6 +105,44 @@ static void show_supported_format_modules()
 
     st_info("  %s\n",st_formats[i]->description);
   }
+
+  st_info("\n");
+}
+
+static void show_format_module_args()
+{
+  int i,showed_format;
+
+  st_info("%s %s default file format arguments:\n",st_priv.fullprogname,RELEASE);
+  st_info("\n");
+
+  st_info(" format    action   arguments\n");
+  st_info(" ------    ------   ---------\n");
+
+  for (i=0;st_formats[i];i++) {
+
+    if (!st_formats[i]->decoder && !st_formats[i]->encoder) {
+      continue;
+    }
+
+    showed_format = 0;
+
+    if (st_formats[i]->decoder) {
+      st_info("  %5s  decoding: ",(showed_format)?"":st_formats[i]->name);
+      st_info(" -i \"%s %s %s\"",st_formats[i]->name,st_formats[i]->decoder,st_formats[i]->decoder_args);
+      st_info("\n");
+      showed_format = 1;
+    }
+
+    if (st_formats[i]->encoder) {
+      st_info("  %5s  encoding: ",(showed_format)?"":st_formats[i]->name);
+      st_info(" -o \"%s ext=%s %s %s\"",st_formats[i]->name,st_formats[i]->extension,st_formats[i]->encoder,st_formats[i]->encoder_args);
+      st_info("\n");
+      showed_format = 1;
+    }
+
+  }
+
   st_info("\n");
 }
 
@@ -116,6 +155,7 @@ static void core_help()
   st_info("\n");
   st_info("  -m      show detailed mode module information\n");
   st_info("  -f      show detailed format module information\n");
+  st_info("  -a      show default format module arguments\n");
   st_info("  -v      show version information\n");
   st_info("  -h      show this help screen\n");
   st_info("\n");
@@ -218,6 +258,10 @@ static bool parse_main(int argc,char **argv)
 
   while ((c=getopt(argc,argv,GLOBAL_OPTS_CORE)) != -1) {
     switch (c) {
+      case 'a':
+        show_format_module_args();
+        exit(ST_EXIT_SUCCESS);
+        break;
       case 'f':
         show_supported_format_modules();
         exit(ST_EXIT_SUCCESS);
@@ -287,13 +331,22 @@ static void globals_init(char *program)
   strcpy(st_priv.fullprogname,st_priv.progname);
   st_priv.progmode = NULL;
   st_priv.clobber_action = CLOBBER_ACTION_ASK;
-  st_priv.progress_type = PROGRESS_PERCENT;
   st_priv.reorder_type = ORDER_NATURAL;
+  st_priv.progress_type = PROGRESS_PERCENT;
   st_priv.is_aliased = FALSE;
   st_priv.show_hmmss = FALSE;
   st_priv.suppress_warnings = FALSE;
   st_priv.suppress_stderr = FALSE;
   st_priv.screen_dirty = FALSE;
+
+  st_input.type = INPUT_CMDLINE;
+  st_input.filename_source = NULLDEVICE;
+  st_input.fd = NULL;
+  st_input.argn = 0;
+  st_input.argc = 0;
+  st_input.argv = NULL;
+  st_input.filecur = 0;
+  st_input.filemax = 0;
 
   p = scan_env(SHNTOOL_DEBUG_ENV);
   n = p ? atoi(p) : 0;

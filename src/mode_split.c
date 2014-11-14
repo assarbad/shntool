@@ -1,5 +1,5 @@
 /*  mode_split.c - split mode module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -20,7 +20,7 @@
 #include <ctype.h>
 #include "mode.h"
 
-CVSID("$Id: mode_split.c,v 1.138 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: mode_split.c,v 1.145 2009/03/18 22:25:00 jason Exp $")
 
 static bool split_main(int,char **);
 static void split_help(void);
@@ -82,7 +82,7 @@ static void split_help()
 {
   int i;
 
-  st_info("Usage: %s [OPTIONS] file\n",st_progname());
+  st_info("Usage: %s [OPTIONS] [file]\n",st_progname());
   st_info("\n");
   st_info("Mode-specific options:\n");
   st_info("\n");
@@ -171,8 +171,8 @@ static void parse(int argc,char **argv,int *first_arg)
     }
   }
 
-  if (optind != argc - 1)
-    st_help("need exactly one file to process");
+  if (optind >= argc && !split_point_file)
+    st_help("if file to be split is not given, then a split point file must be specified");
 
   *first_arg = optind;
 }
@@ -592,7 +592,13 @@ static void get_cue_keyword(unsigned char *line,unsigned char *keyword)
 {
   unsigned char *p,buf[BUF_SIZE];
 
-  strcpy((char *)buf,(const char *)line);
+  p = line;
+
+  /* skip over any binary junk at the beginning (including Unicode BOMs) */
+  while (*p && !isprint(*p))
+    p++;
+
+  strcpy((char *)buf,(const char *)p);
 
   p = (unsigned char *)strtok((char *)buf," \t");
 
@@ -691,8 +697,11 @@ static void read_split_points_file(wave_info *info)
     if (NULL == (fd = fopen(split_point_file,"rb")))
       st_error("could not open split point file: [%s]",split_point_file);
   }
-  else
+  else {
+    if (isatty(fileno(stdin)))
+      st_info("enter split points:\n");
     fd = stdin;
+  }
 
   got_token = get_length_token(fd,data);
 
@@ -885,8 +894,19 @@ static bool process_file(char *filename)
 }
 
 static bool process(int argc,char **argv,int start)
-{
-  return process_file(argv[start]);
+{  
+  char *filename;
+  bool success;
+
+  input_init(start,argc,argv);
+
+  if (!(filename = input_get_filename())) {
+    st_error("need exactly one file to process");
+  }
+
+  success = process_file(filename);
+
+  return success;
 }
 
 static bool split_main(int argc,char **argv)

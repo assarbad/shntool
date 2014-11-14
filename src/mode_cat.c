@@ -1,5 +1,5 @@
 /*  mode_cat.c - cat mode module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_cat.c,v 1.78 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: mode_cat.c,v 1.84 2009/03/30 06:31:20 jason Exp $")
 
 static bool cat_main(int,char **);
 static void cat_help(void);
@@ -49,8 +49,6 @@ static void cat_help()
   st_info("  -e      suppress WAVE headers\n");
   st_info("  -h      show this help screen\n");
   st_info("  -n      suppress NULL pad byte at end of odd-sized data chunks, if present\n");
-  st_info("\n");
-  st_info("If no filenames are given, then filenames are read from the terminal.\n");
   st_info("\n");
 }
 
@@ -101,6 +99,8 @@ static bool cat_file(wave_info *info)
   proginfo.bytes_total = info->total_size;
 
   prog_update(&proginfo);
+
+  SETBINARY_OUT(stdout);
 
   if (NULL == (devnull = open_output(NULLDEVICE))) {
     prog_error(&proginfo);
@@ -221,25 +221,15 @@ static bool process_file(char *filename)
 
 static bool process(int argc,char **argv,int start)
 {
-  char filename[FILENAME_SIZE];
-  int i;
+  char *filename;
   bool success;
 
   success = TRUE;
 
-  if (argc < start + 1) {
-    /* no filenames were given, so we're reading files from the terminal. */
-    fgets(filename,FILENAME_SIZE-1,stdin);
-    while (!feof(stdin)) {
-      trim(filename);
-      success = (process_file(filename) && success);
-      fgets(filename,FILENAME_SIZE-1,stdin);
-    }
-  }
-  else {
-    for (i=start;i<argc;i++) {
-      success = (process_file(argv[i]) && success);
-    }
+  input_init(start,argc,argv);
+
+  while ((filename = input_get_filename())) {
+    success = (process_file(filename) && success);
   }
 
   return success;

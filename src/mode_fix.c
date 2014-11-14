@@ -1,5 +1,5 @@
 /*  mode_fix.c - fix mode module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_fix.c,v 1.112 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: mode_fix.c,v 1.115 2009/03/16 04:46:03 jason Exp $")
 
 static bool fix_main(int,char **);
 static void fix_help(void);
@@ -53,7 +53,7 @@ static wave_info **files;
 
 static void fix_help()
 {
-  st_info("Usage: %s [OPTIONS] file1 file2 [...]\n",st_progname());
+  st_info("Usage: %s [OPTIONS] [file1 ...]\n",st_progname());
   st_info("\n");
   st_info("Mode-specific options:\n");
   st_info("\n");
@@ -97,9 +97,6 @@ static void parse(int argc,char **argv,int *first_arg)
         break;
     }
   }
-
-  if (optind >= argc - 1)
-    st_help("need two or more files to process");
 
   *first_arg = optind;
 }
@@ -382,13 +379,22 @@ static bool process(int argc,char **argv,int start)
 {
   int i,j,remainder;
   bool needs_fixing = FALSE,found_errors = FALSE,success;
+  char *filename;
+
+  input_init(start,argc,argv);
+  input_read_all_files();
+  numfiles = input_get_file_count();
+
+  if (numfiles < 1)
+    st_help("need one or more files to process");
 
   if (NULL == (files = malloc((numfiles + 1) * sizeof(wave_info *))))
     st_error("could not allocate memory for file info array");
 
   for (i=0;i<numfiles;i++) {
-    if (NULL == (files[i] = new_wave_info(argv[start+i]))) {
-      st_error("could not open file: [%s]",argv[start+i]);
+    filename = input_get_filename();
+    if (NULL == (files[i] = new_wave_info(filename))) {
+      st_error("could not open file: [%s]",filename);
     }
   }
 
@@ -440,8 +446,8 @@ static bool process(int argc,char **argv,int start)
     }
   }
 
-  if (numfiles < 2)
-    st_error("need two or more files to process");
+  if (numfiles < 1)
+    st_error("need one or more files to process");
 
   switch (desired_shift) {
     case SHIFT_BACKWARD:
@@ -476,8 +482,6 @@ static bool fix_main(int argc,char **argv)
   int first_arg;
 
   parse(argc,argv,&first_arg);
-
-  numfiles = argc - first_arg;
 
   return process(argc,argv,first_arg);
 }

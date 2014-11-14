@@ -1,5 +1,5 @@
 /*  module-types.h - type definitions common to both modes and formats
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: module-types.h,v 1.7 2008/02/18 23:25:13 jason Exp $
+ * $Id: module-types.h,v 1.8 2009/03/11 17:18:01 jason Exp $
  */
 
 #ifndef __MODULE_TYPES_H__

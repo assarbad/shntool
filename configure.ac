@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([shntool],[3.0.7],[shnutils@freeshell.org])
-AC_REVISION([$Id: configure.ac,v 1.116 2008/03/03 03:43:03 jason Exp $])
+AC_INIT([shntool],[3.0.10],[shnutils@freeshell.org])
+AC_REVISION([$Id: configure.ac,v 1.125 2009/03/30 05:55:33 jason Exp $])
 
 AC_CONFIG_SRCDIR([src/core_shntool.c])
 AC_CONFIG_HEADERS([include/config.h])
@@ -27,7 +27,7 @@ dnl default modes - used if --with-modes is not specified
 ac_build_modes="len fix hash pad join split cat cmp cue conv info strip gen trim"
 
 dnl default file formats - used if --with-formats is not specified
-ac_build_formats="wav aiff shn flac ape ofr lpac wv alac la tta als tak bonk kxs mkw cust term null"
+ac_build_formats="wav aiff shn flac ape alac tak ofr tta als wv lpac la mkw bonk kxs cust term null"
 
 ac_alternate_modes=
 ac_alternate_formats=
@@ -136,7 +136,9 @@ AC_SUBST([MODES_CONFIGURED])
 
 dnl Additional program checks, based on whether certain file formats are included in shntool
 
+echo
 AC_MSG_NOTICE([checking for optional helper programs])
+echo
 
 if test x$format_shn = xtrue; then
   AC_CHECK_PROG([SHORTEN],[shorten],[yes],[no (install for shn support)])
@@ -199,28 +201,40 @@ if test x$format_kxs = xtrue; then
 fi
 
 dnl Checks for header files.
+echo
 AC_MSG_NOTICE([checking for win32 environment])
+echo
 AC_CHECK_HEADERS([windows.h])
 
 dnl Checks for library functions.
+echo
 AC_MSG_NOTICE([checking for library functions])
+echo
 AC_CHECK_FUNCS([strerror vsnprintf atol sysconf])
 
+echo
+AC_MSG_NOTICE([creating build files])
+echo
 AC_OUTPUT([man/Makefile src/Makefile Makefile])
 
 ac_compiled_modes="`echo "$ac_list_modes" | sed -e 's/mode_//g' -e 's/\.c//g'`"
 ac_compiled_formats="`echo "$ac_list_formats" | sed -e 's/format_//g' -e 's/\.c//g'`"
 
+echo
 AC_MSG_NOTICE([creating module glue files])
-${srcdir}/utils/glue.sh mode   $ac_compiled_modes   > src/glue_modes.c
-${srcdir}/utils/glue.sh format $ac_compiled_formats > src/glue_formats.c
+echo
+echo "processing modes..."
+sh ${srcdir}/utils/glue.sh mode   $ac_compiled_modes   > src/glue_modes.c
+echo "processing formats..."
+sh ${srcdir}/utils/glue.sh format $ac_compiled_formats > src/glue_formats.c
 
+echo
 AC_MSG_NOTICE([ready to compile.
 
 $PACKAGE is now configured with the following options:
 
-version:  $VERSION
-modes:    $ac_compiled_modes
-formats:  $ac_compiled_formats
-install:  ${prefix}/bin
+version :  $VERSION
+modes   :  $ac_compiled_modes
+formats :  $ac_compiled_formats
+install :  ${prefix}/bin
 ])

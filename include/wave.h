@@ -1,5 +1,5 @@
 /*  wave.h - WAVE data definitions
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: wave.h,v 1.47 2008/02/18 23:25:13 jason Exp $
+ * $Id: wave.h,v 1.48 2009/03/11 17:18:01 jason Exp $
  */
 
 #ifndef __WAVE_H__

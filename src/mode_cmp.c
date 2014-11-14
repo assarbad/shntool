@@ -1,5 +1,5 @@
 /*  mode_cmp.c - cmp mode module
- *  Copyright (C) 2000-2008  Jason Jordan <shnutils@freeshell.org>
+ *  Copyright (C) 2000-2009  Jason Jordan <shnutils@freeshell.org>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 #include "mode.h"
 
-CVSID("$Id: mode_cmp.c,v 1.85 2008/02/18 23:25:14 jason Exp $")
+CVSID("$Id: mode_cmp.c,v 1.91 2009/03/17 17:23:05 jason Exp $")
 
 static bool cmp_main(int,char **);
 static void cmp_help(void);
@@ -51,8 +51,6 @@ static void cmp_help()
   st_info("  -h      show this help screen\n");
   st_info("  -l      list offsets and values of all differing bytes\n");
   st_info("  -s      check if WAVE data in the files is identical modulo a byte-shift\n");
-  st_info("\n");
-  st_info("If no filenames are given, then filenames are read from the terminal.\n");
   st_info("\n");
 }
 
@@ -405,30 +403,18 @@ static bool process_files(char *filename1,char *filename2)
 
 static bool process(int argc,char **argv,int start)
 {
-  char filename1[FILENAME_SIZE],
-       filename2[FILENAME_SIZE];
+  char *filename1,*filename2;
   bool success;
 
   success = FALSE;
 
-  if (argc < start + 1) {
-    /* no filenames were given, so we're reading two filenames from the terminal. */
-    fgets(filename1,FILENAME_SIZE-1,stdin);
-    if (!feof(stdin)) {
-      fgets(filename2,FILENAME_SIZE-1,stdin);
-      if (!feof(stdin)) {
-        trim(filename1);
-        trim(filename2);
-        success = process_files(filename1,filename2);
-      }
-      else {
-        st_error("need two filenames to process");
-      }
-    }
+  input_init(start,argc,argv);
+
+  if (!(filename1 = input_get_filename()) || !(filename2 = input_get_filename())) {
+    st_error("need exactly two files to process");
   }
-  else {
-    success = process_files(argv[start],argv[start+1]);
-  }
+
+  success = process_files(filename1,filename2);
 
   return success;
 }
