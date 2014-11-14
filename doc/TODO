@@ -1,0 +1,35 @@
+The structure of shntool is still changing, despite my best efforts to nail down
+a fixed module framework.  Here I will try to keep a record of ideas for future
+improvements.
+
+
+Format modules
+--------------
+
+Format modules need improvement.  There are multiple problems with the current
+implementation.
+
+The format modules are simplistic, and do not have per-file local data.  This
+will create a problems for file formats that need to keep state information for
+each file it is handling, e.g. native compression/decompression modules.  Also,
+such a module would need direct access to the WAVE data in order to
+compress/decompress it.  For this reason, two things will eventually need to be
+done:
+
+1.  The format modules will need to be converted to classes, so that each file
+opened can create its own instance of a format module class, thus allowing it to
+keep its own state information.  So the input_func() and output_func() functions
+will need to create and return pointers to such instances.
+
+2.  There should be associated read_file() and write_file() functions that pass
+the raw WAVE data back and/or forth from the format module.  This way the format
+module can have direct access to the WAVE data, and not have to pass a FILE * to
+the caller.
+
+Currently, there is no hurry since it seems that all popular file formats can be
+handled just fine within the current format module framework.  :)
+
+Other stuff
+-----------
+
+- look into supporting non-PCM WAVE data

@@ -1,0 +1,667 @@
+.TH SHNTOOL 1
+.SH NAME
+shntool \- a multi-purpose WAVE data processing and reporting utility
+.SH SYNOPSIS
+.B shntool
+.I mode ...
+.br
+.B shntool
+[
+.B -m
+|
+.B -f
+|
+.B -v
+|
+.B -h
+]
+
+.SH "DESCRIPTION"
+.B shntool
+is a command-line utility to view and/or modify WAVE data and properties.
+It runs in several different operating modes, and supports various file formats.
+.PP
+.B shntool
+is comprised of three parts - its core,
+.I mode
+modules, and
+.I format
+modules.
+This helps to make the code easier to maintain, as well as aid other programmers in developing new functionality.
+The distribution archive contains a file named 'modules.howto' that describes how to create a new mode
+or format module, for those so inclined.
+
+.SS "Mode modules"
+.B shntool
+performs various functions on WAVE data through the use of mode modules.
+The core of
+.B shntool
+is simply a wrapper around the mode modules.  In fact, when
+.B shntool
+is run with a valid mode as its first argument,
+it essentially runs the main procedure for the specified mode, and quits.
+.B shntool
+comes with several built-in modes, described below:
+.br
+.RS
+.TP
+.I len
+Shows size, length, and properties of PCM WAVE data within files
+.TP
+.I fix
+Fixes sector-boundary problems with CD-quality PCM WAVE data
+.TP
+.I md5
+Computes the MD5 fingerprint of PCM WAVE data
+.TP
+.I pad
+Pads CD-quality files not aligned on sector boundaries with silence
+.TP
+.I join
+Joins PCM WAVE data from multiple files into one large file
+.TP
+.I split
+Splits PCM WAVE data from one file into multiple files
+.TP
+.I cat
+Writes (catenates) PCM WAVE data from one or more files to stdout
+.TP
+.I cmp
+Compares PCM WAVE data in two files
+.TP
+.I cue
+Generates a CUE sheet or split points from a set of files
+.TP
+.I conv
+Converts files from one format to another
+.TP
+.I info
+Shows detailed information about WAVE data and other properties for each file given
+.TP
+.I strip
+Strips extra RIFF chunks and/or writes canonical headers
+.RE
+.PP
+For more information on the meaning of the various command-line arguments for each mode, see the
+.B OPTIONS
+section below.
+.PP
+For convenience, each mode can specify an alternate name or alias that will invoke it
+(this feature is currently only available on systems that support symbolic or hard linking).
+In particular, each mode is aliased to 'shn<mode>'.
+For instance, running
+.I shnlen
+is equivalent to running
+.B shntool
+.I len
+- thus saving a few keystrokes.
+
+.SS "Format modules"
+File formats are abstracted from
+.B shntool
+through the use of format modules.  They provide a means for
+.B shntool
+to tranparently read and/or write different file formats.
+This abstraction allows
+.B shntool
+to concentrate on its job without worrying about the
+details of each file format.
+.PP
+The following formats are currently supported:
+.br
+.RS
+.TP
+.I wav
+RIFF WAVE file format
+.TP
+.I aiff
+Audio Interchange File Format (AIFF and uncompressed/sowt AIFF-C only) (via sox [1])
+.TP
+.I shn
+Shorten low complexity waveform coder (via shorten [2])
+.TP
+.I flac
+Free Lossless Audio Codec (via flac [3])
+.TP
+.I ape
+Monkey's Audio Compressor (via mac [4])
+.TP
+.I ofr
+OptimFROG Lossless WAVE Audio Coder (via ofr [5])
+.TP
+.I lpac
+Lossless Predictive Audio Compression (via lpac [6])
+.TP
+.I wv
+WavPack Hybrid Lossless Audio Compression (via wavpack/wvunpack [7])
+.TP
+.I cust
+Custom output format module (output only, useful for specifying non-standard arguments to
+encoders for existing output formats, or encoding to a format that shntool does not yet support)
+.TP
+.I null
+sends output to /dev/null (output only, useful for dry-runs in several modes, such as
+.I fix
+mode or
+.I strip
+mode)
+.RE
+.PP
+When reading files for input,
+.B shntool
+automatically discovers which, if any, format module handles each file.
+In modes where files are created as output, you can specify what the output format should be - otherwise,
+.B shntool
+decides for you by selecting the first format module it finds that supports output (in a default installation, this will be the
+.I wav
+format).
+
+.SH OPTIONS
+When run without a mode,
+.B shntool
+takes these command-line arguments:
+.TP
+.B -m
+Shows detailed mode module information
+.TP
+.B -f
+Shows detailed format module information
+.TP
+.B -v
+Shows version information
+.TP
+.B -h
+Shows a help screen
+.PP
+All mode modules support their own
+.B -v
+and
+.B -h
+options, as well as the
+.B "--"
+option, which indicates that the command-line arguments following it should not be processed as switches
+(i.e. they should be treated as file names).
+Also, each mode accepts the
+.B -D
+option, which tells shntool to print debugging information (this supercedes the SHNTOOL_DEBUG environment variable).
+In addition to these, each mode supports its own set of optional arguments, described below.
+
+.SS len mode optional arguments
+NOTE:  after all files have been processed, a summary line will be shown displaying the total time, size,
+number of files processed, and the overall compression ratio (i.e. the total size of the actual files on disk
+divided by the total size of WAVE data (header, audio, extra RIFF chunks) contained in the files).
+.TP
+.BI "-u " "unit"
+Specifies the unit in which totals will be printed.
+Valid values are
+.I b
+(bytes),
+.I kb
+(kilobytes),
+.I mb
+(megabytes), or
+.I gb
+(gigabytes).  The default is bytes.
+
+.SS len mode output
+The output of len mode may seem cryptic at first, because it attempts to convey a lot of
+information in just a little bit of space.  But it is quite easy to read once you know what
+the columns represent; and in certain columns, what each character in the column means.
+Each column is explained below.
+.TP
+.BI length
+Shows the length of the WAVE data, in m:ss.nnn (millisecond) format.  If the data is CD-quality, then m:ss.ff
+is shown instead, where ff is a number from 00 to 74 that best approximates the number of
+frames (2352-byte blocks) remaining after m:ss.  If all files are CD-quality, the total
+length will be shown in m:ss.ff format; otherwise it will be in m:ss.nnn format.
+NOTE: CD-quality files are rounded to the nearest frame; all other files are rounded to the
+nearest second.
+.TP
+.BI "expanded size"
+Shows the total size of all WAVE chunks within the file (header, data and any extra RIFF chunks).
+Essentially this is the size that the file would be if it were converted to .wav format, e.g.
+with
+.BI shntool
+.I conv
+
+NOTE:  Do not rely on this field for audio size!  If you simply want to know how many bytes of
+audio are in a file, run it through info mode, and look at the "data size" field in its output.
+.TP
+.BI cdr
+Shows properties related to CD-quality files.
+A 'c' in the first slot indicates that the WAVE data is not [C]D-quality.
+A 'b' in the second slot indicates that the CD-quality WAVE data is not cut on a sector [b]oundary.
+An 's' in the third slot indicates that the CD-quality WAVE data is too [s]hort to be burned.
+
+A '-' in any of these slots indicates that the particular property is OK or normal.  An 'x' in any
+of these slots indicates that the particular property does not apply to this file, or cannot
+be determined.
+.TP
+.BI WAVE
+Shows properties of the WAVE data.
+An 'h' in the first slot indicates that the WAVE [h]eader is not canonical.
+An 'e' in the second slot indicates that the WAVE file contains [e]xtra RIFF chunks.
+
+A '-' in any of these slots indicates that the particular property is OK or normal.  An 'x' in any
+of these slots indicates that the particular property does not apply to this file, or cannot
+be determined.
+.TP
+.BI problems
+Shows problems detected with the WAVE header, WAVE data, or the file itself.
+A '3' in the first slot indicates that the file contains an ID[3]v2 header.
+An 'a' in the second slot indicates that the audio data is not block-[a]ligned.
+An 'i' in the third slot indicates that the WAVE header is [i]nconsistent about data size and/or file size.
+A 't' in the fourth slot indicates that the WAVE file seems to be [t]runcated.
+A 'j' in the fifth slot indicates that the WAVE file seems to have [j]unk appended to it.
+
+A '-' in any of these slots indicates that the particular problem was not detected.  An 'x' in any
+of these slots indicates that the particular problem does not apply to this file, or cannot
+be determined.
+.TP
+.BI filename
+Shows the name of the file that's being inspected.
+
+.SS fix mode optional arguments
+NOTE:  file names for files created in
+.I fix
+mode will be based on the input file name with the string '-fixed' appended to it, and the extension
+will be the default extension of the output file format.  For example, with an output file format of
+.I shn
+the file 'foo.wav' would become 'foo-fixed.shn'.
+.TP
+.BI "-o " "format"
+Specifies the output file format.  If not given, this defaults to the first file format it can find that supports output.
+.TP
+.BI "-O " "action"
+Specifies whether output files should be overwritten if they exist.
+Valid values for
+.I action
+are
+.I ask
+(ask before overwriting),
+.I always
+(always overwrite - this is the default), or
+.I never
+(never overwrite).  NOTE: This option has no effect when using the
+.I cust
+output format module.
+.TP
+.BI "-d " "dir"
+Specifies an alternate directory where output files will be created.  The default is the current directory.
+.TP
+.BI "-s " "type"
+Specifies the shift type.  Valid values are
+.I b
+(shift track breaks Backward to previous multiple of 2352 bytes when necessary),
+.I f
+(shift track breaks Forward to next multiple of 2352 bytes when necessary), and
+.I r
+(Round track breaks to the nearest multiple of 2352 bytes when necessary).
+The default is to shift track breaks backward.
+.TP
+.B -nopad
+Specifies that the last file created should not be padded with zero-bytes to make its WAVE data size a multiple
+of 2352 bytes.  The default is to pad the last file.
+.TP
+.B -noskip
+Specifies that all files should be processed, even if the first several of them wouldn't be altered (aside from a possible file format change).
+The default is to skip the first N files that wouldn't be changed (from a WAVE data perspective) in order to avoid unnecessary work.
+.TP
+.B -order
+Allows you to edit the order of the files given on the command line.  This is useful for situations where
+*.shn might give file1.shn, file10.shn, file11.shn, file2.shn, file3.shn, etc.
+.TP
+.B -p
+Preview what changes would be made, without actually making them.
+
+.SS md5 mode optional arguments
+.TP
+.B -c
+Specifies that the composite MD5 fingerprint for all input files should be calculated, instead of the default of one MD5 fingerprint per file.
+The composite MD5 fingerprint is simply the MD5 fingerprint of the WAVE data from all input files taken as a whole in the order given,
+and is identical to the one that would be calculated from the joined file if the same files were joined into one large file, with no padding added.
+This option can be used to fingerprint file sets, or to identify file sets in which track breaks have been moved around, but no audio has been modified
+in any way (e.g. no padding added, no resampling done, etc.).
+
+.SS pad mode optional arguments
+NOTE:  file names for files created in
+.I pad
+mode will be based on the input file name with the string '-prepadded' or '-postpadded' appended to it, and the extension
+will be the default extension of the output file format.  For example, with an output file format of
+.I shn
+and pre-padding specified on the command line, the file 'foo.wav' would become 'foo-prepadded.shn'.
+.PP
+Be aware that some output format encoder programs (e.g. flac, ape) automatically
+strip headers and/or extra RIFF chunks.
+.TP
+.BI "-o " "format"
+Specifies the output file format.  If not given, this defaults to the first file format it can find that supports output.
+.TP
+.BI "-O " "action"
+Specifies whether output files should be overwritten if they exist.
+Valid values for
+.I action
+are
+.I ask
+(ask before overwriting),
+.I always
+(always overwrite - this is the default), or
+.I never
+(never overwrite).  NOTE: This option has no effect when using the
+.I cust
+output format module.
+.TP
+.BI "-d " "dir"
+Specifies an alternate directory where output files will be created.  The default is the same directory as the associated input file.
+.TP
+.BI -prepad
+Specifies that the file created should be padded at the beginning with zero-bytes to make its WAVE data size a multiple
+of 2352 bytes.
+.TP
+.BI -postpad
+Specifies that the file created should be padded at the end with zero-bytes to make its WAVE data size a multiple
+of 2352 bytes.  This is the default action.
+.TP
+.B -p
+Preview what changes would be made, without actually making them.
+
+.SS join mode optional arguments
+NOTE:  file names for files created in
+.I join
+mode will be prefixed with 'joined.', and the extension
+will be the default extension of the output file format.  For example, with an output file format of
+.I wav
+the files 'files*.wav' would become 'joined.wav'.  Disregard this if you are using the -stdout option.
+.TP
+.BI "-o " "format"
+Specifies the output file format.  If not given, this defaults to the first file format it can find that supports output.
+.TP
+.BI "-O " "action"
+Specifies whether output files should be overwritten if they exist.
+Valid values for
+.I action
+are
+.I ask
+(ask before overwriting),
+.I always
+(always overwrite - this is the default), or
+.I never
+(never overwrite).  NOTE: This option has no effect when using the
+.I cust
+output format module.
+.TP
+.BI "-d " "dir"
+Specifies an alternate directory where the output file will be created.  The default is the current directory.
+.TP
+.B -nopad
+Specifies that the file created should not be padded with zero-bytes to make its WAVE data size a multiple
+of 2352 bytes.  Note that this option does not apply if the input files
+are not CD-quality, since padding is undefined in that case.
+.TP
+.B -prepad
+Specifies that the file created should be padded at the beginning with zero-bytes to make its WAVE data size a multiple
+of 2352 bytes.  Note that this option does not apply if the input files
+are not CD-quality, since padding is undefined in that case.
+.TP
+.B -postpad
+Specifies that the file created should be padded at the end with zero-bytes to make its WAVE data size a multiple
+of 2352 bytes.  This is the default action.  Note that this option does not apply if the input files
+are not CD-quality, since padding is undefined in that case.
+.TP
+.B -stdout
+Specifies that data should be written to stdout, not a file.  This option can only be used with the 'wav' file format.
+.TP
+.B -order
+Allows you to edit the order of the files given on the command line.  This is useful for situations where
+*.shn might give file1.shn, file10.shn, file11.shn, file2.shn, file3.shn, etc.
+.TP
+.B -p
+Preview what changes would be made, without actually making them.
+
+.SS split mode optional arguments
+NOTE:  file names for files created in
+.I split
+mode are of the form prefixNNN.ext, where NNN is the output file number, and 'ext' is the default extension of the output file format.
+If an output file format of 'wav' is used, and the prefix is not altered via the
+.B -n
+switch described below, then the output file names will be "split-track01.wav", "split-track02.wav", etc.
+.PP
+For information on specifying split points, see the "Specifying split points" section below.
+.TP
+.BI "-o " "format"
+Specifies the output file format.  If not given, this defaults to the first file format it can find that supports output.
+.TP
+.BI "-O " "action"
+Specifies whether output files should be overwritten if they exist.
+Valid values for
+.I action
+are
+.I ask
+(ask before overwriting),
+.I always
+(always overwrite - this is the default), or
+.I never
+(never overwrite).  NOTE: This option has no effect when using the
+.I cust
+output format module.
+.TP
+.BI "-d " "dir"
+Specifies an alternate directory where output files will be created.  The default is the current directory.
+.TP
+.BI "-f " "file"
+Specifies a file from which to read split point data.  If not given, then split points are read from stdin.
+.TP
+.BI "-l " "len"
+Specifies that the input file should be split into smaller files based on multiples of time interval
+.BI len
+.TP
+.BI "-n " "name"
+Specifies a prefix name to use when building output filenames.  The default prefix is "split-track".
+.TP
+.BI "-c " "num"
+Specifies the number to start counting from when naming output files.  The default is 1.
+.TP
+.B -p
+Preview what changes would be made, without actually making them.
+
+.SS Specifying split points
+.PP
+Split points simply mark places within the WAVE data of the input file where tracks will be split.
+They can be specified in any combination of the following formats:
+.TP
+.B bytes
+where bytes is a specific byte offset
+.TP
+.B m:ss
+where m = minutes and ss = seconds
+.TP
+.B m:ss.ff
+where m = minutes, ss = seconds and ff = frames (75 per second, so ff ranges from 00 to 74)
+.TP
+.B m:ss.nnn
+where m = minutes, ss = seconds and nnn = milliseconds (will be rounded to closest sector boundary,
+or the first sector boundary if the closest one happens to be the beginning of the file)
+.TP
+.B "CUE sheet"
+- a simple CUE sheet, in which each "INDEX 01 m:ss:ff" line is converted to a m:ss.ff split point
+.PP
+Split points must be given in increasing order, and must appear one per line.
+If the byte offset calculated from the final split point equals the input file's WAVE data size, then it is ignored.
+Since split points specify locations within the input file where tracks will be split, N split points will create N+1 output files.
+All m:ss formats will create splits on sector boundaries whenever the input file is CD-quality;
+to force non-sector-aligned splits, use the exact byte format.
+
+.SS cat mode optional arguments
+.TP
+.B -nh
+Specifies that the WAVE header should be suppressed from the output.  The default is to write the header.
+.TP
+.B -nd
+Specifies that the WAVE data should be suppressed from the output.  The default is to write the data.
+.TP
+.B -nr
+Specifies that extra RIFF chunks should be suppressed from the output.  The default is to write the extra RIFF chunks.
+.TP
+.B -np
+Specifies that the NULL pad byte at end of odd-sized data chunks should be suppressed from the output, if present.  The default is to write the NULL pad byte.
+This option only applies when WAVE data is also written, otherwise it is ignored.
+
+.SS cmp mode optional arguments
+.TP
+.BI -s
+Check to see whether the WAVE data contained in the input files are identical modulo a byte-shift.
+Currently, this will only detect differences up to the first 529200 bytes (equal to 3 seconds of CD-quality data).
+This can be used to compare WAVE data within a pre-burned file to WAVE data in the corresponding track
+ripped from the burned CD, which is useful if the ripped track came from a CD burned TAO, and thus might have a
+2-second gap of silence at the beginning.  This option can also help identify a CD burner/CD reader combined read/write offset.
+.TP
+.BI -l
+List offsets and values of all differing bytes.  Output is similar to 'cmp -l'; in particular, offsets are 1-based.
+Can be used with the
+.BI -s
+switch.
+.TP
+.BI "-f fuzz"
+Sets the "fuzz factor" for determining whether byte-shifted data is identical.
+.BI fuzz
+is a positive integer that represents the maximum number of allowable byte mismatches between the two files
+in the area searched by the
+.BI -s
+option.
+This allows one to check for differing bytes between to files that (a) are
+byte-shifted and (b) contain at least one error in the area searched by the
+.BI -s
+option.  The higher the fuzz factor, the longer the search takes, so set it
+low to begin with (8 or so), and increase it in small steps if needed.
+NOTE: this switch can only be used with the
+.BI -s
+switch.
+
+.SS cue mode optional arguments
+.TP
+.B -c
+Specifies that a simple CUE sheet should be output.  This is the default action.
+NOTE: all input files must be CD-quality for CUE sheets to be valid.
+.TP
+.B -s
+Specifies that split points in explicit byte-offset format should be output.
+
+.SS conv mode optional arguments
+NOTE:  file names for files created in
+.I conv
+mode will be named based on the input file name.  Specifically, if the input
+file name ends with the default file extension for that file's format, then the
+default extension for the desired output format will replace it; otherwise, it
+will be appended to it.  For example, for an output format of
+.I shn
+and a
+.I wav
+input file named 'file.wav', the converted file will be named 'file.shn', since '.wav'
+is shntool's default extension for the
+.I wav
+format.  On the other hand,
+given the same situation above, but with an input file named 'file.wave', the
+converted file will be named 'file.wave.shn', since '.wave' does not match '.wav'.
+.PP
+Be aware that some output format encoder programs (e.g. flac, ape) automatically
+strip headers and/or extra RIFF chunks, while others (e.g. sox) might adjust
+WAVE data sizes in rare instances in order to align the audio on a block boundary.
+.TP
+.BI "-o " "format"
+Specifies the output file format.  If not given, this defaults to the first file format it can find that supports output.
+.TP
+.BI "-O " "action"
+Specifies whether output files should be overwritten if they exist.
+Valid values for
+.I action
+are
+.I ask
+(ask before overwriting),
+.I always
+(always overwrite - this is the default), or
+.I never
+(never overwrite).  NOTE: This option has no effect when using the
+.I cust
+output format module.
+.TP
+.BI "-d " "dir"
+Specifies an alternate directory where output files will be created.  The default is the same directory as the associated input file.
+
+.SS info mode optional arguments
+This mode doesn't support any additional arguments.
+
+.SS strip mode optional arguments
+NOTE:  file names for files created in
+.I strip
+mode will be based on the input file name with the string '-stripped' appended to it, and the extension
+will be the default extension of the output file format.  For example, with an output file format of
+.I wav
+the file 'bar.shn' would become 'bar-stripped.wav'.
+.PP
+Be aware that some output format encoder programs (e.g. flac, ape) automatically
+strip headers and/or extra RIFF chunks, while others (e.g. sox) might adjust
+WAVE data sizes in rare instances in order to align the audio on a block boundary.
+.TP
+.BI "-o " "format"
+Specifies the output file format.  If not given, this defaults to the first file format it can find that supports output.
+.TP
+.BI "-O " "action"
+Specifies whether output files should be overwritten if they exist.
+Valid values for
+.I action
+are
+.I ask
+(ask before overwriting),
+.I always
+(always overwrite - this is the default), or
+.I never
+(never overwrite).  NOTE: This option has no effect when using the
+.I cust
+output format module.
+.TP
+.BI "-d " "dir"
+Specifies an alternate directory where output files will be created.  The default is the same directory as the associated input file.
+.TP
+.B -nh
+Specifies that WAVE headers should not be made canonical.  The default is to canonicalize headers.
+.TP
+.B -nr
+Specifies that extra RIFF chunks should not be stripped.  The default is to remove everything that appears after the first data chunk.
+.TP
+.B -p
+Preview what changes would be made, without actually making them.
+
+.SH NOTES
+.B shntool
+is a misnomer, since it
+processes WAVE data, not shorten data.
+The name is a holdover from its early days as 'shnlen',
+a program created specifically to extract information
+about WAVE data stored within .shn files.
+.PP
+Aliases for
+.B shntool
+are prefixed with 'shn' instead of 'wav' to avoid possible collisions with existing programs.
+
+.SH AUTHOR
+Jason Jordan <shnutils@freeshell.org>
+
+.SH "SEE ALSO"
+The latest version of
+.B shntool
+can always be found at <http://www.etree.org/shnutils/> or <http://shnutils.freeshell.org/>.
+.PP
+[1] More information on sox can be found at <http://sox.sourceforge.net/>.
+.PP
+[2] More information on the shorten low complexity waveform coder can be found at <http://www.softsound.com/Shorten.html>.
+.PP
+[3] More information on the Free Lossless Audio Codec can be found at <http://flac.sourceforge.net/>.
+.PP
+[4] More information on Monkey's Audio Compressor can be found at <http://www.monkeysaudio.com/>.
+Windows and Linux binaries are available at <http://www.uni-jena.de/~pfk/mpp/#ape>.
+.PP
+[5] More information on the OptimFROG Lossless WAVE Audio Coder can be found at <http://ghido.shelter.ro/>.
+.PP
+[6] More information on the Lossless Predictive Audio Compression can be found at <http://www.nue.tu-berlin.de/wer/liebchen/lpac.html>.
+.PP
+[7] More information on WavPack Hybrid Lossless Audio Compression be found at <http://www.wavpack.com/>.
