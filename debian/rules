@@ -7,4 +7,4 @@ export DEB_BUILD_MAINT_OPTIONS=hardening=+all
 export DEB_CFLAGS_MAINT_APPEND= -Wall -W -Wno-sign-compare -g
 
 %:
-	dh $@ --with autoreconf
+	dh $@
