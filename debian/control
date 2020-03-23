@@ -1,9 +1,9 @@
 Source: shntool
 Section: utils
-Priority: extra
+Priority: optional
+Standards-Version: 4.5.0
 Maintainer: Dmitry Smirnov <onlyjob@debian.org>
 Build-Depends: debhelper-compat (= 12)
-Standards-Version: 3.9.6
 Homepage: http://etree.org/shnutils/shntool/
 Vcs-Browser: https://salsa.debian.org/debian/shntool
 Vcs-Git: https://salsa.debian.org/debian/shntool.git
