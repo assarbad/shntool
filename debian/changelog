@@ -17,7 +17,7 @@ shntool (3.0.10-1) unstable; urgency=low
 shntool (3.0.7-1.1) unstable; urgency=low
 
   * Non-maintainer upload.
-  * Use dh-autoreconf in build to support new architectures (Closes: #748804) 
+  * Use dh-autoreconf in build to support new architectures (Closes: #748804)
 
  -- Chen Baozi <baozich@gmail.com>  Fri, 06 Jun 2014 20:51:55 +0800
 
